@@ -8,7 +8,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/schedule?createDatabaseIfNotExist=true
     username: root
-    password: 1234
+    password:
   jpa:
     hibernate:
       ddl-auto: update # create-drop, create, update, validate, none

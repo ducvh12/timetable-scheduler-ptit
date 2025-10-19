@@ -74,4 +74,22 @@ public class FacultyController {
         facultyService.deleteFaculty(id);
         return ResponseEntity.noContent().build();
     }
+    
+    @Operation(summary = "Test upload file", description = "Test upload file Excel")
+    @PostMapping("/upload-test")
+    public ResponseEntity<String> uploadTest(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        try {
+            if (file == null || file.isEmpty()) {
+                return ResponseEntity.badRequest().body("File không được để trống");
+            }
+            
+            String fileName = file.getOriginalFilename();
+            long fileSize = file.getSize();
+            
+            return ResponseEntity.ok("File uploaded: " + fileName + ", Size: " + fileSize + " bytes");
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Lỗi: " + e.getMessage());
+        }
+    }
 }
