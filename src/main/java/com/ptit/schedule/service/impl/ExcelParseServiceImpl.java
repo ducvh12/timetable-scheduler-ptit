@@ -217,20 +217,6 @@ public class ExcelParseServiceImpl implements ExcelParseService {
                 }
             } catch (Exception e) {
                 log.error("Lỗi tạo Faculty {}: {}", facultyName, e.getMessage(), e);
-                // Tìm existing faculty
-                try {
-                    var existingFaculty = facultyService.getAllFaculties().stream()
-                        .filter(f -> f.getFacultyName().equals(facultyName))
-                        .findFirst();
-                    if (existingFaculty.isPresent()) {
-                        facultyIdMap.put(facultyName, existingFaculty.get().getId());
-                        log.info("Found existing Faculty: {} with ID: {}", facultyName, existingFaculty.get().getId());
-                    } else {
-                        log.warn("Faculty {} không tồn tại và không thể tạo mới", facultyName);
-                    }
-                } catch (Exception ex) {
-                    log.error("Không thể tìm Faculty {}: {}", facultyName, ex.getMessage(), ex);
-                }
             }
         }
         
