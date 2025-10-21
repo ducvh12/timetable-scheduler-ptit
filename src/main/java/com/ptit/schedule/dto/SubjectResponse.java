@@ -6,7 +6,7 @@ import lombok.Data;
 @Data
 public class SubjectResponse {
     
-    private String id;
+    private String subjectCode;
     private String subjectName;
     private Integer studentsPerClass;
     private Integer numberOfClasses;
@@ -18,12 +18,12 @@ public class SubjectResponse {
     private Integer selfStudyHours;
     private String department;
     private String examFormat;
-    private String majorId;
+    private Long majorId;
     private String majorName;
     
     public static SubjectResponse fromEntity(Subject subject) {
         SubjectResponse response = new SubjectResponse();
-        response.setId(subject.getId());
+        response.setSubjectCode(subject.getSubjectCode());
         response.setSubjectName(subject.getSubjectName());
         response.setStudentsPerClass(subject.getStudentsPerClass());
         response.setNumberOfClasses(subject.getNumberOfClasses());

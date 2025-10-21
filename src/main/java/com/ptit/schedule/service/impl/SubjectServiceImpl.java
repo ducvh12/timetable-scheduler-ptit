@@ -38,23 +38,14 @@ public class SubjectServiceImpl implements SubjectService {
                 .collect(Collectors.toList());
     }
     
-    /**
-     * Lấy subject theo ID
-     */
-    @Override
-    @Transactional(readOnly = true)
-    public SubjectResponse getSubjectById(String id) {
-        Subject subject = subjectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Subject not found with id: " + id));
-        return SubjectResponse.fromEntity(subject);
-    }
+
     
     /**
      * Lấy subjects theo major ID
      */
     @Override
     @Transactional(readOnly = true)
-    public List<SubjectResponse> getSubjectsByMajorId(String majorId) {
+    public List<SubjectResponse> getSubjectsByMajorId(Integer majorId) {
         return subjectRepository.findByMajorId(majorId)
                 .stream()
                 .map(SubjectResponse::fromEntity)
@@ -69,10 +60,17 @@ public class SubjectServiceImpl implements SubjectService {
     public SubjectResponse createSubject(SubjectRequest request) {
         // Kiểm tra major có tồn tại không, nếu không thì tạo mới
         Major major = getOrCreateMajor(request);
-        
+
+        Optional<Subject> exitsingSubject = subjectRepository.findBySubjectCodeAndMajorCode(request.getSubjectCode(),
+                major.getMajorCode());
+        if (exitsingSubject.isPresent()) {
+//            System.out.println("Subject with id " + request.getSubjectId() + " already exists. Updating instead.");
+            return updateSubject(exitsingSubject.get().getId(), request);
+
+        }
         // Tạo subject mới
         Subject subject = Subject.builder()
-                .id(request.getSubjectId())
+                .subjectCode(request.getSubjectCode())
                 .subjectName(request.getSubjectName())
                 .theoryHours(request.getTheoryHours())
                 .exerciseHours(request.getExerciseHours())
@@ -95,13 +93,16 @@ public class SubjectServiceImpl implements SubjectService {
      * Lấy major nếu tồn tại, nếu không thì tạo mới
      */
     private Major getOrCreateMajor(SubjectRequest request) {
-        // Tìm major theo ID và class year
-        Optional<Major> existingMajor = majorRepository.findByIdAndClassYear(
+        // Tìm major theo major code và class year
+
+
+        Optional<Major> existingMajor = majorRepository.findByMajorCodeAndClassYear(
                 request.getMajorId(), 
                 request.getClassYear()
         );
         
         if (existingMajor.isPresent()) {
+//            System.out.println("Major with id " + request.getMajorId() + " and class year " + request.getClassYear() + " already exists.");
             return existingMajor.get();
         }
         
@@ -119,7 +120,7 @@ public class SubjectServiceImpl implements SubjectService {
                 .orElseThrow(() -> new RuntimeException("Faculty not found with id: " + request.getFacultyId()));
         
         Major newMajor = Major.builder()
-                .id(request.getMajorId())
+                .majorCode(request.getMajorId())
                 .majorName(request.getMajorName())
                 .numberOfStudents(request.getNumberOfStudents() != null ? request.getNumberOfStudents() : 50)
                 .classYear(request.getClassYear())
@@ -133,7 +134,7 @@ public class SubjectServiceImpl implements SubjectService {
      * Cập nhật subject
      */
     @Override
-    public SubjectResponse updateSubject(String id, SubjectRequest request) {
+    public SubjectResponse updateSubject(Long id, SubjectRequest request) {
         Subject subject = subjectRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Subject not found with id: " + id));
         
@@ -141,7 +142,7 @@ public class SubjectServiceImpl implements SubjectService {
         Major major = getOrCreateMajor(request);
         
         // Cập nhật thông tin subject
-        subject.setId(request.getSubjectId());
+        subject.setSubjectCode(request.getSubjectCode());
         subject.setSubjectName(request.getSubjectName());
         subject.setStudentsPerClass(request.getStudentsPerClass());
         subject.setNumberOfClasses(request.getNumberOfClasses());
@@ -154,7 +155,8 @@ public class SubjectServiceImpl implements SubjectService {
         subject.setDepartment(request.getDepartment());
         subject.setExamFormat(request.getExamFormat());
         subject.setMajor(major);
-        
+        subject.setProgramType(request.getProgramType());
+
         Subject savedSubject = subjectRepository.save(subject);
         return SubjectResponse.fromEntity(savedSubject);
     }
@@ -163,7 +165,7 @@ public class SubjectServiceImpl implements SubjectService {
      * Xóa subject
      */
     @Override
-    public void deleteSubject(String id) {
+    public void deleteSubject(Long id) {
         if (!subjectRepository.existsById(id)) {
             throw new RuntimeException("Subject not found with id: " + id);
         }

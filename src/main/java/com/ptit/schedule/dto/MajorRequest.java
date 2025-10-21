@@ -6,6 +6,10 @@ import lombok.Data;
 @Data
 public class MajorRequest {
     
+    @NotBlank(message = "Major ID is required")
+    @Size(max = 50, message = "Major ID must not exceed 50 characters")
+    private String majorId;
+    
     @NotBlank(message = "Major name is required")
     @Size(max = 255, message = "Major name must not exceed 255 characters")
     private String majorName;

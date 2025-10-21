@@ -14,41 +14,48 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class Subject {
     @Id
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "subject_code")
+    private String subjectCode;          // Mã môn học
 
     @Column(name = "subject_name")
     private String subjectName;
 
     @Column(name = "students_per_class")
-    private int studentsPerClass;    // Sĩ số mỗi lớp học phần
+    private Integer studentsPerClass;    // Sĩ số mỗi lớp học phần
 
     @Column(name = "number_of_classes")
-    private int numberOfClasses;     // Số lớp học phần
+    private Integer numberOfClasses;     // Số lớp học phần
 
-    private int credits;            // Số tín chỉ
+    private Integer credits;            // Số tín chỉ
 
     @Column(name = "theory_hours")  // Số tiết lý thuyết
-    private int theoryHours;
+    private Integer theoryHours;
 
     @Column(name = "exercise_hours")  // Số tiết bài tập
-    private int exerciseHours;
+    private Integer exerciseHours;
 
     @Column(name = "project_hours")  // Số tiết btl
-    private int projectHours;
+    private Integer projectHours;
 
     @Column(name = "lab_hours") // Số tiết thực hành
-    private int labHours;
+    private Integer labHours;
 
     @Column(name = "self_study_hours")  // Số tiết tự học
-    private int selfStudyHours;
+    private Integer selfStudyHours;
 
     private String department; // Bộ môn
 
-    @Column(name = "exam_format") // Hình thức thi
+    @Column(name = "exam_format", nullable = true) // Hình thức thi
     private String examFormat;
 
+    @Column(name = "program_type", nullable = true)
+    private String programType; // Loại chương trình (Ví dụ: Chính quy, CLC,..)
+
     @ManyToOne
-    @JoinColumn(name = "major_id", nullable = false)
+    @JoinColumn(name = "major_id")
     private Major major;
 
 }

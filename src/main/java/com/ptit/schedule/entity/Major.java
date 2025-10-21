@@ -18,25 +18,32 @@ import java.util.List;
 public class Major {
 
     @Id
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    private Long id;
     
-    @Column(name = "major_name", nullable = false)
+    @Column(name = "major_code", nullable = false)
+    @NotBlank(message = "Major code is required")
+    @Size(max = 50, message = "Major code must not exceed 50 characters")
+    private String majorCode;
+    
+    @Column(name = "class_year", nullable = false)
+    @NotBlank(message = "Class year is required")
+    @Size(max = 10, message = "Class year must not exceed 10 characters")
+    private String classYear;
+    
+    @Column(name = "major_name")
     @Size(max = 255, message = "Major name must not exceed 255 characters")
     private String majorName;
 
-    @Column(name = "number_of_students", nullable = false)
+    @Column(name = "number_of_students")
     @NotNull(message = "Number of students is required")
     @Min(value = 1, message = "Number of students must be at least 1")
     @Max(value = 1000, message = "Number of students must not exceed 1000")
     private Integer numberOfStudents;  // Sĩ số sinh viên
 
-    @Column(name = "class_year", nullable = false) // Khóa học
-    @NotBlank(message = "Class year is required")
-    @Size(max = 10, message = "Class year must not exceed 10 characters")
-    private String classYear;
-
     @ManyToOne
-    @JoinColumn(name = "faculty_id", nullable = false)
+    @JoinColumn(name = "faculty_id")
     @NotNull(message = "Faculty is required")
     private Faculty faculty;
 

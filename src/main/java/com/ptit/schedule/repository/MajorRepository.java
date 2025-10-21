@@ -8,17 +8,11 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface MajorRepository extends JpaRepository<Major, String> {
+public interface MajorRepository extends JpaRepository<Major, Long> {
     
     // Tìm majors theo faculty ID
     List<Major> findByFacultyId(String facultyId);
-    
-    // Tìm majors theo tên (tìm kiếm gần đúng)
-    List<Major> findByMajorNameContainingIgnoreCase(String majorName);
-    
-    // Tìm majors theo khóa học
-    List<Major> findByClassYear(String classYear);
-    
-    // Tìm major theo ID và khóa học
-    Optional<Major> findByIdAndClassYear(String id, String classYear);
+
+    // Tìm major theo major code và khóa học
+    Optional<Major> findByMajorCodeAndClassYear(String majorCode, String classYear);
 }

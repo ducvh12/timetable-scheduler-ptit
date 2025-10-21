@@ -11,16 +11,12 @@ public interface SubjectService {
      * Lấy tất cả subjects
      */
     List<SubjectResponse> getAllSubjects();
-    
-    /**
-     * Lấy subject theo ID
-     */
-    SubjectResponse getSubjectById(String id);
+
     
     /**
      * Lấy subjects theo major ID
      */
-    List<SubjectResponse> getSubjectsByMajorId(String majorId);
+    List<SubjectResponse> getSubjectsByMajorId(Integer majorId);
 
     /**
      * Tạo subject mới
@@ -30,10 +26,10 @@ public interface SubjectService {
     /**
      * Cập nhật subject
      */
-    SubjectResponse updateSubject(String id, SubjectRequest request);
+    SubjectResponse updateSubject(Long id, SubjectRequest request);
     
     /**
      * Xóa subject
      */
-    void deleteSubject(String id);
+    void deleteSubject(Long id);
 }

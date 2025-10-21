@@ -9,7 +9,8 @@ import java.util.stream.Collectors;
 @Data
 public class MajorResponse {
     
-    private String id;
+    private Long id;
+    private String majorCode;
     private String majorName;
     private Integer numberOfStudents;
     private String classYear;
@@ -21,6 +22,7 @@ public class MajorResponse {
     public static MajorResponse fromEntity(Major major) {
         MajorResponse response = new MajorResponse();
         response.setId(major.getId());
+        response.setMajorCode(major.getMajorCode());
         response.setMajorName(major.getMajorName());
         response.setNumberOfStudents(major.getNumberOfStudents());
         response.setClassYear(major.getClassYear());
@@ -29,7 +31,7 @@ public class MajorResponse {
         
         if (major.getSubjects() != null) {
             response.setSubjectIds(major.getSubjects().stream()
-                    .map(subject -> subject.getId())
+                    .map(subject -> subject.getSubjectCode())
                     .collect(Collectors.toList()));
             response.setSubjectNames(major.getSubjects().stream()
                     .map(subject -> subject.getSubjectName())
