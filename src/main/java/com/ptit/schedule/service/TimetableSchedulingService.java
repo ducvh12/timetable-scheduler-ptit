@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -54,6 +55,18 @@ public class TimetableSchedulingService {
     // Global state for batch processing (like Python)
     private int lastSlotIdx = -1;  // PERMANENT: Only updated when user confirms
     private int sessionLastSlotIdx = -1;  // TEMPORARY: Updated during generation
+
+    /**
+     * Initialize service - load lastSlotIdx from file
+     */
+    @PostConstruct
+    public void init() {
+        log.info("Initializing TimetableSchedulingService...");
+        // Load lastSlotIdx from persistent storage
+        lastSlotIdx = dataLoaderService.loadLastSlotIdx();
+        sessionLastSlotIdx = lastSlotIdx;
+        log.info("Loaded lastSlotIdx from file: {}", lastSlotIdx);
+    }
 
     /**
      * Simulate Excel Flow Batch - exact Python logic with room assignment
@@ -118,20 +131,27 @@ public class TimetableSchedulingService {
                     continue;
                 }
 
-                // Calculate starting slot for this major (exact Python logic)
-                int startingSlotIdx = (sessionLastSlotIdx + 1) % ROTATING_SLOTS.size();
-
                 List<TKBRowResult> resultRows;
                 int classes;
+                int startingSlotIdx;
 
                 // BRANCH: Special handling for 60-period subjects vs regular subjects
                 if (targetTotal == 60) {
                     log.info("Using SPECIAL 60-period logic for {}", tkbRequest.getMa_mon());
                     classes = Math.max(1, toInt(tkbRequest.getSolop(), 1));
+                    
+                    // Map from regular slot to 60-period slot
+                    startingSlotIdx = mapRegularSlotTo60PeriodSlot(sessionLastSlotIdx);
+                    log.info("Mapped regular slot {} to 60-period slot {}", sessionLastSlotIdx, startingSlotIdx);
+                    
                     resultRows = process60PeriodSubject(tkbRequest, pool, rooms, occupiedRooms, startingSlotIdx);
                 } else {
                     // REGULAR PROCESSING
                     classes = Math.max(1, toInt(tkbRequest.getSolop(), 1));
+                    
+                    // Calculate starting slot for regular subjects
+                    startingSlotIdx = (sessionLastSlotIdx + 1) % ROTATING_SLOTS.size();
+                    
                     log.info("Using REGULAR logic: {} classes for {}", classes, tkbRequest.getMa_mon());
                     resultRows = processRegularSubject(tkbRequest, pool, rooms, occupiedRooms, startingSlotIdx, classes, targetTotal);
                 }
@@ -199,8 +219,11 @@ public class TimetableSchedulingService {
         // COMMIT sessionLastSlotIdx to permanent lastSlotIdx
         lastSlotIdx = sessionLastSlotIdx;
         
+        // SAVE lastSlotIdx to persistent storage (file)
+        dataLoaderService.saveLastSlotIdx(lastSlotIdx);
+        
         log.info("Committed {} new rooms to global. Total global rooms: {}", addedCount, afterCount);
-        log.info("Committed lastSlotIdx: {}", lastSlotIdx);
+        log.info("Committed and saved lastSlotIdx to file: {}", lastSlotIdx);
         
         // Clear session after commit
         sessionOccupiedRooms.clear();
@@ -298,6 +321,25 @@ public class TimetableSchedulingService {
         }
         
         return lastClassSlotIdx % ROTATING_SLOTS.size();
+    }
+
+    /**
+     * Map regular slot index to 60-period slot index
+     * When transitioning from regular subjects to 60-period subjects,
+     * we need to find the next available pair of consecutive days.
+     * 
+     * Regular slots: 12 individual day slots
+     * 60-period slots: 12 paired-day slots (3 day-pairs × 4 kips)
+     * 
+     * @param regularSlotIdx current slot index from regular subject scheduling
+     * @return appropriate starting slot index for 60-period subject
+     */
+    private int mapRegularSlotTo60PeriodSlot(int regularSlotIdx) {
+        // Calculate which day-pair the regular slot belongs to (every 2 regular slots = 1 pair)
+        // Then move to the next pair and start at its first kip
+        int pairIndex = (regularSlotIdx / 2) + 1; // Next pair after current
+        int slot60Index = (pairIndex * 4) % ROTATING_SLOTS_60.size(); // First kip of that pair
+        return slot60Index;
     }
 
     /**
