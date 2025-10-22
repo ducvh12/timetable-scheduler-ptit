@@ -1,7 +1,7 @@
 spring:
   devtools:
     restart:
-      enabled: false
+      enabled: true
 
   application:
     name: schedule

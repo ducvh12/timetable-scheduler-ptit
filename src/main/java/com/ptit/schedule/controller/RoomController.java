@@ -4,6 +4,7 @@ import com.ptit.schedule.dto.ApiResponse;
 import com.ptit.schedule.dto.RoomRequest;
 import com.ptit.schedule.dto.RoomResponse;
 import com.ptit.schedule.service.RoomService;
+import com.ptit.schedule.service.TimetableSchedulingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/rooms")
@@ -20,6 +21,7 @@ import java.util.List;
 public class RoomController {
     
     private final RoomService roomService;
+    private final TimetableSchedulingService timetableSchedulingService;
     
     @Operation(summary = "Tạo phòng học mới", description = "Tạo phòng học mới trong hệ thống")
     @PostMapping
@@ -86,5 +88,72 @@ public class RoomController {
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("Room Controller is OK");
+    }
+    
+    @Operation(summary = "Confirm and save current session results", 
+               description = "API được gọi khi user bấm nút 'Thêm vào kết quả' để commit session occupied rooms vào global")
+    @PostMapping("/save-results")
+    public ResponseEntity<Map<String, Object>> saveResults() {
+        try {
+            // Commit session occupied rooms to global (permanent storage)
+            timetableSchedulingService.commitSessionToGlobal();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Đã lưu kết quả TKB vào hệ thống!");
+            response.put("status", "success");
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Lỗi khi lưu kết quả: " + e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+    
+    @Operation(summary = "Reset occupied rooms", 
+               description = "Reset tất cả phòng đã sử dụng (cả session và global) - Cho phép sử dụng lại tất cả phòng")
+    @PostMapping("/reset")
+    public ResponseEntity<Map<String, Object>> resetOccupiedRooms() {
+        try {
+            // Get info before reset
+            Map<String, Integer> beforeInfo = timetableSchedulingService.getOccupiedRoomsInfo();
+            
+            // Reset both session and global occupied rooms
+            timetableSchedulingService.resetOccupiedRooms();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Đã reset phòng đã sử dụng! Tất cả phòng có thể sử dụng lại.");
+            response.put("status", "success");
+            response.put("clearedRooms", beforeInfo.get("total"));
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Lỗi khi reset phòng: " + e.getMessage());
+            errorResponse.put("status", "error");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+    
+    @Operation(summary = "Get occupied rooms info", 
+               description = "Lấy thông tin về số phòng đã sử dụng (session và global)")
+    @GetMapping("/occupied-info")
+    public ResponseEntity<Map<String, Object>> getOccupiedRoomsInfo() {
+        try {
+            Map<String, Integer> info = timetableSchedulingService.getOccupiedRoomsInfo();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("session", info.get("session"));
+            response.put("global", info.get("global"));
+            response.put("total", info.get("total"));
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Lỗi khi lấy thông tin phòng: " + e.getMessage());
+            errorResponse.put("status", "error");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
     }
 }

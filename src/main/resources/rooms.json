@@ -1,0 +1,785 @@
+[
+  {
+    "phong": "301",
+    "capacity": 36,
+    "day": "A1",
+    "ma_phong": "391-A1",
+    "type": "clc",
+    "note": "Lớp CLC 2024"
+  },
+  {
+    "phong": "302",
+    "capacity": 36,
+    "day": "A1",
+    "ma_phong": "392-A1",
+    "type": "clc",
+    "note": "Lớp CLC 2024 x x x x"
+  },
+  {
+    "phong": "303",
+    "capacity": 36,
+    "day": "A1",
+    "ma_phong": "393-A1",
+    "type": "clc",
+    "note": "Lớp CLC 2024"
+  },
+  {
+    "phong": "502",
+    "capacity": 45,
+    "day": "A1",
+    "ma_phong": "502-A1",
+    "type": "clc",
+    "note": "Lớp CLC x x x x X X x x x x x x x x"
+  },
+  {
+    "phong": "503",
+    "capacity": 40,
+    "day": "A1",
+    "ma_phong": "503-A1",
+    "type": "clc",
+    "note": "Lớp CLC x x X X x x x x x x x x x x x"
+  },
+  {
+    "phong": "504",
+    "capacity": 50,
+    "day": "A1",
+    "ma_phong": "504-A1",
+    "type": "clc",
+    "note": "Lớp CLC x x x x x x x x x x x x x x x x x x x x"
+  },
+  {
+    "phong": "505",
+    "capacity": 50,
+    "day": "A1",
+    "ma_phong": "505-A1",
+    "type": "clc",
+    "note": "Lớp CLC x x x x X X x x x x x x x x X X"
+  },
+  {
+    "phong": "506",
+    "capacity": 50,
+    "day": "A1",
+    "ma_phong": "506-A1",
+    "type": "clc",
+    "note": "Lớp CLC x x x x X X X X x x x x x x"
+  },
+  {
+    "phong": "G01",
+    "capacity": 48,
+    "day": "A2",
+    "ma_phong": "G01-A2",
+    "type": "english",
+    "note": "Phòng học TA 1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "G02",
+    "capacity": 64,
+    "day": "A2",
+    "ma_phong": "G02-A2",
+    "type": "general",
+    "note": "x x X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "G03",
+    "capacity": 80,
+    "day": "A2",
+    "ma_phong": "G03-A2",
+    "type": "general",
+    "note": "1.0 X X x x X X X X x x X X X X X X X X X X X X"
+  },
+  {
+    "phong": "G04",
+    "capacity": 48,
+    "day": "A2",
+    "ma_phong": "G04-A2",
+    "type": "english",
+    "note": "Phòng học TA 1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "G05",
+    "capacity": 48,
+    "day": "A2",
+    "ma_phong": "G05-A2",
+    "type": "english",
+    "note": "Phòng học TA 1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "G06",
+    "capacity": 48,
+    "day": "A2",
+    "ma_phong": "G06-A2",
+    "type": "english",
+    "note": "Phòng học TA X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "101",
+    "capacity": 140,
+    "day": "A2",
+    "ma_phong": "101-A2",
+    "type": "year2024",
+    "note": "2024"
+  },
+  {
+    "phong": "102",
+    "capacity": 72,
+    "day": "A2",
+    "ma_phong": "102-A2",
+    "type": "general",
+    "note": "X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "104",
+    "capacity": 48,
+    "day": "A2",
+    "ma_phong": "104-A2",
+    "type": "general",
+    "note": "X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "105",
+    "capacity": 48,
+    "day": "A2",
+    "ma_phong": "105-A2",
+    "type": "general",
+    "note": "X X"
+  },
+  {
+    "phong": "201",
+    "capacity": 140,
+    "day": "A2",
+    "ma_phong": "201-A2",
+    "type": "year2024",
+    "note": "2024 x x x x x x x x x x x x x x x x x x x x"
+  },
+  {
+    "phong": "204",
+    "capacity": 48,
+    "day": "A2",
+    "ma_phong": "204-A2",
+    "type": "clc",
+    "note": "Lớp CLC X X x x X X x x x x x x x x x x x x x x x x x x"
+  },
+  {
+    "phong": "205",
+    "capacity": 48,
+    "day": "A2",
+    "ma_phong": "205-A2",
+    "type": "clc",
+    "note": "Lớp CLC x x x x x x x x x x x x x x x x X X x x"
+  },
+  {
+    "phong": "206",
+    "capacity": 48,
+    "day": "A2",
+    "ma_phong": "206-A2",
+    "type": "clc",
+    "note": "Lớp CLC X X X X X X X X X X X X X X x x x x x x"
+  },
+  {
+    "phong": "301",
+    "capacity": 100,
+    "day": "A2",
+    "ma_phong": "301-A2",
+    "type": "general",
+    "note": "1.0 x x x x x x x x x x x x x x x x x x x x"
+  },
+  {
+    "phong": "302",
+    "capacity": 112,
+    "day": "A2",
+    "ma_phong": "302-A2",
+    "type": "general",
+    "note": "X X X X X X X X X X X"
+  },
+  {
+    "phong": "303",
+    "capacity": 48,
+    "day": "A2",
+    "ma_phong": "303-A2",
+    "type": "english",
+    "note": "Phòng học TA 1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "304",
+    "capacity": 80,
+    "day": "A2",
+    "ma_phong": "304-A2",
+    "type": "general",
+    "note": "1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "305",
+    "capacity": 72,
+    "day": "A2",
+    "ma_phong": "305-A2",
+    "type": "general",
+    "note": "1.0 X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "401",
+    "capacity": 100,
+    "day": "A2",
+    "ma_phong": "401-A2",
+    "type": "general",
+    "note": "1.0 x x x x x x x x x x x x x x x x x x x x x x x x"
+  },
+  {
+    "phong": "402",
+    "capacity": 72,
+    "day": "A2",
+    "ma_phong": "402-A2",
+    "type": "general",
+    "note": "X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "403",
+    "capacity": 134,
+    "day": "A2",
+    "ma_phong": "403-A2",
+    "type": "year2024",
+    "note": "2024 X X X X x x x x X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "404",
+    "capacity": 48,
+    "day": "A2",
+    "ma_phong": "404-A2",
+    "type": "english",
+    "note": "Phòng học TA 1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "405",
+    "capacity": 80,
+    "day": "A2",
+    "ma_phong": "405-A2",
+    "type": "general",
+    "note": "1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "501",
+    "capacity": 110,
+    "day": "A2",
+    "ma_phong": "501-A2",
+    "type": "general",
+    "note": "1.0 x x x x x x x x x x x x x x x x x x x x x x x x"
+  },
+  {
+    "phong": "502",
+    "capacity": 80,
+    "day": "A2",
+    "ma_phong": "502-A2",
+    "type": "general",
+    "note": "x x x x x x x x x x x x x x x x x x x x x x"
+  },
+  {
+    "phong": "503",
+    "capacity": 150,
+    "day": "A2",
+    "ma_phong": "503-A2",
+    "type": "year2024",
+    "note": "2024 X X X X x x X X X X X X X X X X X X"
+  },
+  {
+    "phong": "504",
+    "capacity": 48,
+    "day": "A2",
+    "ma_phong": "504-A2",
+    "type": "english",
+    "note": "Phòng học TA 1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "505",
+    "capacity": 72,
+    "day": "A2",
+    "ma_phong": "505-A2",
+    "type": "general",
+    "note": "x x x x x x x x x x x x x x x x X X X X"
+  },
+  {
+    "phong": "601",
+    "capacity": 110,
+    "day": "A2",
+    "ma_phong": "601-A2",
+    "type": "general",
+    "note": "1.0 x x x x x x x x x x x x x x x x x x x x x x x x"
+  },
+  {
+    "phong": "602",
+    "capacity": 80,
+    "day": "A2",
+    "ma_phong": "602-A2",
+    "type": "general",
+    "note": "x x x x x x x x x x x x x x"
+  },
+  {
+    "phong": "603",
+    "capacity": 130,
+    "day": "A2",
+    "ma_phong": "603-A2",
+    "type": "year2024",
+    "note": "2024 X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "604",
+    "capacity": 48,
+    "day": "A2",
+    "ma_phong": "604-A2",
+    "type": "english",
+    "note": "Phòng học TA 1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "605",
+    "capacity": 72,
+    "day": "A2",
+    "ma_phong": "605-A2",
+    "type": "general",
+    "note": "x x x x x x x x x x x x x x"
+  },
+  {
+    "phong": "701",
+    "capacity": 100,
+    "day": "A2",
+    "ma_phong": "701-A2",
+    "type": "general",
+    "note": "1.0 x x x x x x x x x x x x x x x x x x x x x x x x"
+  },
+  {
+    "phong": "702",
+    "capacity": 80,
+    "day": "A2",
+    "ma_phong": "702-A2",
+    "type": "year2024",
+    "note": "2024"
+  },
+  {
+    "phong": "703",
+    "capacity": 120,
+    "day": "A2",
+    "ma_phong": "703-A2",
+    "type": "year2024",
+    "note": "2024 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "704",
+    "capacity": 48,
+    "day": "A2",
+    "ma_phong": "704-A2",
+    "type": "english",
+    "note": "Phòng học TA 1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "705",
+    "capacity": 72,
+    "day": "A2",
+    "ma_phong": "705-A2",
+    "type": "year2024",
+    "note": "2024"
+  },
+  {
+    "phong": "801",
+    "capacity": 100,
+    "day": "A2",
+    "ma_phong": "801-A2",
+    "type": "year2024",
+    "note": "2024"
+  },
+  {
+    "phong": "802",
+    "capacity": 80,
+    "day": "A2",
+    "ma_phong": "802-A2",
+    "type": "year2024",
+    "note": "2024"
+  },
+  {
+    "phong": "101",
+    "capacity": 50,
+    "day": "A3",
+    "ma_phong": "101-A3",
+    "type": "general"
+  },
+  {
+    "phong": "201A",
+    "capacity": 72,
+    "day": "A3",
+    "ma_phong": "201A-A3",
+    "type": "general",
+    "note": "1.0 x x x x x x x x x x x x x x x x x x x x x x x x"
+  },
+  {
+    "phong": "201B",
+    "capacity": 80,
+    "day": "A3",
+    "ma_phong": "201B-A3",
+    "type": "general",
+    "note": "x x x x x x x x x x x x X x x x x X X x x"
+  },
+  {
+    "phong": "202",
+    "capacity": 56,
+    "day": "A3",
+    "ma_phong": "202-A3",
+    "type": "general",
+    "note": "x x X X X X X X"
+  },
+  {
+    "phong": "204",
+    "capacity": 56,
+    "day": "A3",
+    "ma_phong": "204-A3",
+    "type": "general",
+    "note": "1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "205",
+    "capacity": 110,
+    "day": "A3",
+    "ma_phong": "205-A3",
+    "type": "year2024",
+    "note": "2024 X X X X X X X x x x x x x x"
+  },
+  {
+    "phong": "206",
+    "capacity": 56,
+    "day": "A3",
+    "ma_phong": "206-A3",
+    "type": "general",
+    "note": "1.0 X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "207",
+    "capacity": 120,
+    "day": "A3",
+    "ma_phong": "207-A3",
+    "type": "year2024",
+    "note": "2024 X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "208",
+    "capacity": 56,
+    "day": "A3",
+    "ma_phong": "208-A3",
+    "type": "general",
+    "note": "1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "302",
+    "capacity": 56,
+    "day": "A3",
+    "ma_phong": "302-A3",
+    "type": "general",
+    "note": "X X X X X X X x x X X X X X X X x x x x"
+  },
+  {
+    "phong": "303",
+    "capacity": 110,
+    "day": "A3",
+    "ma_phong": "303-A3",
+    "type": "year2024",
+    "note": "2024 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "304",
+    "capacity": 56,
+    "day": "A3",
+    "ma_phong": "304-A3",
+    "type": "general",
+    "note": "1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "305",
+    "capacity": 70,
+    "day": "A3",
+    "ma_phong": "305-A3",
+    "type": "general",
+    "note": "X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "306",
+    "capacity": 56,
+    "day": "A3",
+    "ma_phong": "306-A3",
+    "type": "general",
+    "note": "1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "308",
+    "capacity": 56,
+    "day": "A3",
+    "ma_phong": "308-A3",
+    "type": "general",
+    "note": "X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "309",
+    "capacity": 110,
+    "day": "A3",
+    "ma_phong": "309-A3",
+    "type": "year2024",
+    "note": "2024"
+  },
+  {
+    "phong": "311",
+    "capacity": 140,
+    "day": "A3",
+    "ma_phong": "311-A3",
+    "type": "year2024",
+    "note": "2024"
+  },
+  {
+    "phong": "403",
+    "capacity": 120,
+    "day": "A3",
+    "ma_phong": "403-A3",
+    "type": "year2024",
+    "note": "2024"
+  },
+  {
+    "phong": "405",
+    "capacity": 70,
+    "day": "A3",
+    "ma_phong": "405-A3",
+    "type": "general",
+    "note": "1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "409",
+    "capacity": 120,
+    "day": "A3",
+    "ma_phong": "409-A3",
+    "type": "year2024",
+    "note": "2024"
+  },
+  {
+    "phong": "411",
+    "capacity": 70,
+    "day": "A3",
+    "ma_phong": "411-A3",
+    "type": "general",
+    "note": "1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "413",
+    "capacity": 70,
+    "day": "A3",
+    "ma_phong": "413-A3",
+    "type": "general",
+    "note": "1.0 X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "101",
+    "capacity": 75,
+    "day": "NT",
+    "ma_phong": "101-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "102",
+    "capacity": 60,
+    "day": "NT",
+    "ma_phong": "102-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "201",
+    "capacity": 64,
+    "day": "NT",
+    "ma_phong": "201-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "202",
+    "capacity": 64,
+    "day": "NT",
+    "ma_phong": "202-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "301",
+    "capacity": 40,
+    "day": "NT",
+    "ma_phong": "301-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "302",
+    "capacity": 64,
+    "day": "NT",
+    "ma_phong": "302-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "303",
+    "capacity": 40,
+    "day": "NT",
+    "ma_phong": "303-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "304",
+    "capacity": 64,
+    "day": "NT",
+    "ma_phong": "304-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X X X c c X X"
+  },
+  {
+    "phong": "305",
+    "capacity": 64,
+    "day": "NT",
+    "ma_phong": "305-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X x x x x"
+  },
+  {
+    "phong": "401",
+    "capacity": 40,
+    "day": "NT",
+    "ma_phong": "401-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X x x x x"
+  },
+  {
+    "phong": "402",
+    "capacity": 64,
+    "day": "NT",
+    "ma_phong": "402-NT",
+    "type": "nt",
+    "note": "NT X X x x X X X X X X X X X"
+  },
+  {
+    "phong": "403",
+    "capacity": 40,
+    "day": "NT",
+    "ma_phong": "403-NT",
+    "type": "nt",
+    "note": "NT x x x x"
+  },
+  {
+    "phong": "404",
+    "capacity": 64,
+    "day": "NT",
+    "ma_phong": "404-NT",
+    "type": "nt",
+    "note": "NT x x x x X X X X X X X X X X"
+  },
+  {
+    "phong": "405",
+    "capacity": 75,
+    "day": "NT",
+    "ma_phong": "405-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "501",
+    "capacity": 75,
+    "day": "NT",
+    "ma_phong": "501-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "502",
+    "capacity": 75,
+    "day": "NT",
+    "ma_phong": "502-NT",
+    "type": "nt",
+    "note": "NT x x X X X X x x"
+  },
+  {
+    "phong": "503",
+    "capacity": 40,
+    "day": "NT",
+    "ma_phong": "503-NT",
+    "type": "nt",
+    "note": "NT"
+  },
+  {
+    "phong": "504",
+    "capacity": 60,
+    "day": "NT",
+    "ma_phong": "504-NT",
+    "type": "nt",
+    "note": "NT X X c c X X x x X X"
+  },
+  {
+    "phong": "505",
+    "capacity": 90,
+    "day": "NT",
+    "ma_phong": "505-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "601",
+    "capacity": 75,
+    "day": "NT",
+    "ma_phong": "601-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "602",
+    "capacity": 75,
+    "day": "NT",
+    "ma_phong": "602-NT",
+    "type": "nt",
+    "note": "NT x x X X x x X X X X"
+  },
+  {
+    "phong": "603",
+    "capacity": 40,
+    "day": "NT",
+    "ma_phong": "603-NT",
+    "type": "nt",
+    "note": "NT"
+  },
+  {
+    "phong": "604",
+    "capacity": 75,
+    "day": "NT",
+    "ma_phong": "604-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "605",
+    "capacity": 75,
+    "day": "NT",
+    "ma_phong": "605-NT",
+    "type": "nt",
+    "note": "NT X X x x X X X X X X X X X X X X"
+  },
+  {
+    "phong": "701",
+    "capacity": 75,
+    "day": "NT",
+    "ma_phong": "701-NT",
+    "type": "nt",
+    "note": "NT X X X X X X X X X X X X X X X X"
+  },
+  {
+    "phong": "702",
+    "capacity": 75,
+    "day": "NT",
+    "ma_phong": "702-NT",
+    "type": "nt",
+    "note": "NT x x c c"
+  },
+  {
+    "phong": "703",
+    "capacity": 40,
+    "day": "NT",
+    "ma_phong": "703-NT",
+    "type": "nt",
+    "note": "NT"
+  }
+]

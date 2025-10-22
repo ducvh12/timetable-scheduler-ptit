@@ -1,0 +1,27 @@
+﻿=== JAVA TKB GENERATION RESULT ===
+Timestamp: 10/21/2025 23:39:18
+Request: TEST001 - Test 40 Periods (40 tiết, 5 lớp)
+
+SUMMARY:
+- Total rows: 10
+- Last slot index: 11
+- Classes count: Microsoft.PowerShell.Commands.GenericMeasureInfo.Count
+
+DETAILED ROWS:Row 1: Lớp=1, Kíp=1, Thứ=5, TiếtBĐ=1, L=2, AH=32, AI=40, AJ=8
+Row 2: Lớp=1, Kíp=1, Thứ=5, TiếtBĐ=3, L=1, AH=8, AI=8, AJ=0
+Row 3: Lớp=2, Kíp=2, Thứ=5, TiếtBĐ=4, L=2, AH=32, AI=40, AJ=8
+Row 4: Lớp=2, Kíp=2, Thứ=5, TiếtBĐ=3, L=1, AH=8, AI=8, AJ=0
+Row 5: Lớp=3, Kíp=3, Thứ=6, TiếtBĐ=7, L=2, AH=32, AI=40, AJ=8
+Row 6: Lớp=3, Kíp=3, Thứ=6, TiếtBĐ=9, L=1, AH=8, AI=8, AJ=0
+Row 7: Lớp=4, Kíp=4, Thứ=6, TiếtBĐ=10, L=2, AH=32, AI=40, AJ=8
+Row 8: Lớp=4, Kíp=4, Thứ=6, TiếtBĐ=9, L=1, AH=8, AI=8, AJ=0
+Row 9: Lớp=5, Kíp=1, Thứ=7, TiếtBĐ=1, L=2, AH=32, AI=40, AJ=8
+Row 10: Lớp=5, Kíp=1, Thứ=7, TiếtBĐ=3, L=1, AH=8, AI=8, AJ=0
+
+=== CLASS SUMMARY ===
+Lớp 1: 2 rows
+Lớp 2: 2 rows
+Lớp 3: 2 rows
+Lớp 4: 2 rows
+Lớp 5: 2 rows
+
