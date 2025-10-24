@@ -2,7 +2,7 @@ package com.ptit.schedule.service;
 
 import com.ptit.schedule.dto.*;
 import com.ptit.schedule.entity.Room;
-import com.ptit.schedule.model.RoomPickResult;
+import com.ptit.schedule.dto.RoomPickResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

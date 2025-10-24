@@ -1,4 +1,4 @@
-package com.ptit.schedule.model;
+package com.ptit.schedule.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

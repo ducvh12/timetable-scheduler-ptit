@@ -6,7 +6,7 @@ import com.ptit.schedule.dto.RoomStatusUpdateRequest;
 import com.ptit.schedule.entity.Room;
 import com.ptit.schedule.entity.RoomStatus;
 import com.ptit.schedule.entity.RoomType;
-import com.ptit.schedule.model.RoomPickResult;
+import com.ptit.schedule.dto.RoomPickResult;
 import com.ptit.schedule.repository.RoomRepository;
 import com.ptit.schedule.service.RoomService;
 import lombok.RequiredArgsConstructor;
