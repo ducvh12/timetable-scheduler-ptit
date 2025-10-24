@@ -43,5 +43,5 @@ public interface RoomService {
     // Methods for TimetableSchedulingService
     RoomPickResult pickRoom(List<Room> rooms, Integer sisoPerClass, Set<Object> occupied,
             Integer thu, Integer kip, String subjectType, String studentYear,
-            String heDacThu, List<String> weekSchedule);
+            String heDacThu, List<String> weekSchedule, String nganh, String maMon);
 }
