@@ -6,7 +6,7 @@ import com.ptit.schedule.dto.RoomStatusUpdateRequest;
 import com.ptit.schedule.entity.Room;
 import com.ptit.schedule.entity.RoomStatus;
 import com.ptit.schedule.entity.RoomType;
-import com.ptit.schedule.model.RoomPickResult;
+import com.ptit.schedule.dto.RoomPickResult;
 
 import java.util.List;
 import java.util.Set;
@@ -43,5 +43,5 @@ public interface RoomService {
     // Methods for TimetableSchedulingService
     RoomPickResult pickRoom(List<Room> rooms, Integer sisoPerClass, Set<Object> occupied,
             Integer thu, Integer kip, String subjectType, String studentYear,
-            String heDacThu, List<String> weekSchedule);
+            String heDacThu, List<String> weekSchedule, String nganh, String maMon);
 }

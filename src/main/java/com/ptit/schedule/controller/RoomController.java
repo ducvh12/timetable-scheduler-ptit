@@ -8,6 +8,7 @@ import com.ptit.schedule.entity.RoomStatus;
 import com.ptit.schedule.entity.RoomType;
 import com.ptit.schedule.service.RoomService;
 import com.ptit.schedule.service.TimetableSchedulingService;
+import com.ptit.schedule.service.SubjectRoomMappingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,12 +22,13 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/rooms")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://localhost:8080",
-        "http://localhost:8081"})
+@CrossOrigin(origins = { "http://localhost:3000", "http://localhost:3001", "http://localhost:8080",
+        "http://localhost:8081" })
 public class RoomController {
 
     private final RoomService roomService;
     private final TimetableSchedulingService timetableSchedulingService;
+    private final SubjectRoomMappingService subjectRoomMappingService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<RoomResponse>>> getAllRooms() {
@@ -214,5 +216,34 @@ public class RoomController {
             errorResponse.put("status", "error");
             return ResponseEntity.badRequest().body(errorResponse);
         }
+    }
+
+    // Subject-Room Mapping endpoints
+    @GetMapping("/subject-room-mappings")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getSubjectRoomMappings() {
+        Map<String, String> mappings = subjectRoomMappingService.getAllMappings();
+        return ResponseEntity.ok(ApiResponse.<Map<String, String>>builder()
+                .success(true)
+                .message("Lấy danh sách mapping môn-phòng thành công")
+                .data(mappings)
+                .build());
+    }
+
+    @DeleteMapping("/subject-room-mappings")
+    public ResponseEntity<ApiResponse<Void>> clearSubjectRoomMappings() {
+        subjectRoomMappingService.clearMappings();
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .success(true)
+                .message("Xóa tất cả mapping môn-phòng thành công")
+                .build());
+    }
+
+    @DeleteMapping("/subject-room-mappings/{maMon}")
+    public ResponseEntity<ApiResponse<Void>> clearSubjectRoomMapping(@PathVariable String maMon) {
+        subjectRoomMappingService.clearSubject(maMon);
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .success(true)
+                .message("Xóa mapping cho môn " + maMon + " thành công")
+                .build());
     }
 }

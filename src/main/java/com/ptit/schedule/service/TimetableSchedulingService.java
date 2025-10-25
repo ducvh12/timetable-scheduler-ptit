@@ -2,7 +2,7 @@ package com.ptit.schedule.service;
 
 import com.ptit.schedule.dto.*;
 import com.ptit.schedule.entity.Room;
-import com.ptit.schedule.model.RoomPickResult;
+import com.ptit.schedule.dto.RoomPickResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,6 +23,7 @@ public class TimetableSchedulingService {
 
     private final DataLoaderService dataLoaderService;
     private final RoomService roomService;
+    private final SubjectRoomMappingService subjectRoomMappingService;
 
     // TEMPORARY session storage - cleared when user generates new TKB without
     // saving
@@ -91,6 +92,9 @@ public class TimetableSchedulingService {
 
             // CLEAR session occupied rooms when starting new TKB generation
             sessionOccupiedRooms.clear();
+
+            // Clear subject-room mappings for new batch
+            subjectRoomMappingService.clearMappings();
 
             // Load global occupied rooms (PERMANENT - already confirmed by user)
             Set<Object> globalOccupiedRooms = dataLoaderService.loadGlobalOccupiedRooms();
@@ -441,12 +445,19 @@ public class TimetableSchedulingService {
                                 tkbRequest.getSubject_type(),
                                 tkbRequest.getStudent_year(),
                                 tkbRequest.getHe_dac_thu(),
-                                null // week_schedule can be added later
+                                null, // week_schedule can be added later
+                                tkbRequest.getNganh(), // NEW
+                                tkbRequest.getMa_mon() // NEW
                         );
 
                         if (roomResult.hasRoom()) {
                             classRoomCode = roomResult.getRoomCode();
                             classRoomMaPhong = roomResult.getMaPhong();
+
+                            log.info("Assigned room {} in building {} for subject {} (major: {}, preferred: {})",
+                                    classRoomCode, roomResult.getBuilding(),
+                                    tkbRequest.getMa_mon(), tkbRequest.getNganh(),
+                                    roomResult.isPreferredBuilding() ? "YES" : "NO");
 
                             // Mark room as occupied in BOTH session and working set
                             String occupationKey = classRoomCode + "|" + rowThu + "|" + rowKip;
@@ -558,13 +569,20 @@ public class TimetableSchedulingService {
                                     tkbRequest.getSubject_type(),
                                     tkbRequest.getStudent_year(),
                                     tkbRequest.getHe_dac_thu(),
-                                    null);
+                                    null,
+                                    tkbRequest.getNganh(), // NEW
+                                    tkbRequest.getMa_mon() // NEW
+                            );
 
                             if (roomResult.hasRoom()) {
                                 classRoomCode = roomResult.getRoomCode();
                                 classRoomMaPhong = roomResult.getMaPhong();
 
-                                log.info("Assigned room {} for class {}", classRoomCode, cls);
+                                log.info(
+                                        "Assigned room {} in building {} for subject {} class {} (major: {}, preferred: {})",
+                                        classRoomCode, roomResult.getBuilding(),
+                                        tkbRequest.getMa_mon(), cls, tkbRequest.getNganh(),
+                                        roomResult.isPreferredBuilding() ? "YES" : "NO");
                             }
                         }
                     }
