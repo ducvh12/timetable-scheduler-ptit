@@ -58,4 +58,7 @@ public class Subject {
     @JoinColumn(name = "major_id")
     private Major major;
 
+    @Column(name = "semester", nullable = true)
+    private String semester;
+
 }
