@@ -1,0 +1,3353 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TKB & Curriculum Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            font-weight: 300;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .btn-primary:hover, .btn-primary.active {
+            background: white;
+            color: #4facfe;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+
+        .btn-secondary:hover, .btn-secondary.active {
+            background: white;
+            color: #4facfe;
+            transform: translateY(-2px);
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* TKB Styles */
+        .grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 20px; 
+            margin-bottom: 30px;
+        }
+
+        .card { 
+            border: 1px solid #ddd; 
+            border-radius: 10px; 
+            padding: 20px; 
+            background: #fafafa;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .card h3 {
+            margin-bottom: 15px;
+            color: #333;
+            border-bottom: 2px solid #4facfe;
+            padding-bottom: 10px;
+        }
+
+        .form-row { 
+            display: grid; 
+            grid-template-columns: 140px 1fr; 
+            gap: 10px; 
+            align-items: center; 
+            margin: 10px 0; 
+        }
+
+        .form-row label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        input[type="number"], input[type="text"], select { 
+            padding: 8px 12px; 
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="number"]:focus, input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        button { 
+            padding: 10px 20px; 
+            margin-top: 10px; 
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        table { 
+            border-collapse: collapse; 
+            width: 100%; 
+            font-size: 12px; 
+            margin-top: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Make batch table inputs fill cell and widen subject name column */
+        #batchTable input[type="text"], #batchTable input[type="number"], #batchTable input {
+            width: 100% !important;
+            margin: 0 auto;
+            height: 30px !important;
+            padding: 4px 6px !important;
+            border: 1px solid #ddd !important;
+            border-radius: 4px !important;
+            font-size: 13px !important;
+            box-sizing: border-box !important;
+            text-align: center !important;
+            display: block !important;
+        }
+        
+        /* Make checkboxes normal size and centered */
+        #batchTable input[type="checkbox"] {
+            width: auto !important;
+            height: auto !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            transform: scale(1.2);
+            display: block !important;
+        }
+        
+        /* Center dropdown in "Chọn môn khác khóa" column */
+        #batchTable select {
+            margin: 0 auto !important;
+            display: block !important;
+            text-align: center;
+        }
+        /* Compact column widths */
+        #batchTable th:nth-child(1), #batchTable td:nth-child(1) { /* Mã môn */
+            width: 150px;
+        }
+        #batchTable td:nth-child(1) input {
+            width: 100% !important;
+            height: 30px !important;
+            padding: 4px 6px !important;
+            font-size: 13px !important;
+            text-align: center !important;
+        }
+        #batchTable th:nth-child(2), #batchTable td:nth-child(2) { /* Tên môn */
+            min-width: 250px;
+            width: 300px;
+        }
+        #batchTable th:nth-child(3), #batchTable td:nth-child(3) { /* Sĩ số */
+            min-width: 70px;
+            width: 80px;
+        }
+        #batchTable th:nth-child(4), #batchTable td:nth-child(4) { /* Sĩ số một lớp / Số lớp */
+            min-width: 80px;
+            width: 100px;
+        }
+        #batchTable th:nth-child(5), #batchTable td:nth-child(5) { /* Khóa / Ngành */
+            min-width: 80px;
+            width: 90px;
+        }
+        #batchTable th:nth-child(6), #batchTable td:nth-child(6) { /* Khóa */
+            min-width: 70px;
+            width: 80px;
+        }
+        #batchTable th:nth-child(7), #batchTable td:nth-child(7) { /* Hệ đặc thù / Học riêng */
+            min-width: 80px;
+            width: 100px;
+        }
+        #batchTable th:nth-child(8), #batchTable td:nth-child(8) { /* Đăng ký chung */
+            min-width: 90px;
+            width: 110px;
+        }
+        #batchTable th:nth-child(9), #batchTable td:nth-child(9) { /* Chọn môn khác khóa */
+            min-width: 150px;
+            width: 170px;
+        }
+        
+        /* Delete button column */
+        #batchTable th:nth-child(9), #batchTable td:nth-child(9) { /* Delete button */
+            min-width: 60px;
+            width: 70px;
+        }
+        #batchTable th:nth-child(10), #batchTable td:nth-child(10) { /* Delete button cho he thuong */
+            min-width: 60px;
+            width: 70px;
+        }
+        
+        /* He dac thu specific columns */
+        .he-dac-thu-display {
+            font-weight: bold;
+            color: #666;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: #f8f9fa;
+            font-size: 13px;
+        }
+        
+        /* Styled delete button */
+        #batchTable .del {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.3s ease;
+        }
+        
+        #batchTable .del:hover {
+            background: #ff3742;
+        }
+
+        th, td { 
+            border: 1px solid #ddd; 
+            padding: 6px 8px; 
+            text-align: center; 
+        }
+
+        /* Make multi-line cells render nicely */
+        #batchTable {
+            table-layout: auto;
+            width: auto;
+            margin: 15px auto;
+            border-collapse: collapse;
+        }
+        
+        #batchTable td { 
+            vertical-align: top; 
+            padding: 8px 6px;
+            border: 1px solid #ddd;
+        }
+        #batchTable .cell-text {
+            width: 100%;
+            max-width: 300px;
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+            line-height: 1.3;
+            background: #fff;
+            resize: vertical;
+            min-height: 30px;
+            box-sizing: border-box;
+        }
+
+        /* Make number inputs compact and centered */
+        #batchTable td:nth-child(3) input,
+        #batchTable td:nth-child(4) input,
+        #batchTable td:nth-child(5) input {
+            width: 100%;
+            max-width: 130px;
+            text-align: center;
+            margin: 0 auto;
+        }
+
+        /* Ensure Ma mon input looks consistent */
+        #batchTable td:nth-child(1) input {
+            font-family: inherit;
+            text-align: left;
+        }
+
+        th { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        .badge { 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+            background: #eee; 
+        }
+
+        .x { 
+            background: #dff0d8; 
+        }
+
+        .row-a td { 
+            background: #fbfbff; 
+        }
+
+        .row-b td { 
+            background: #e8f4fd; 
+        }
+
+        .small { 
+            color:#666; 
+            font-size:12px; 
+        }
+
+        pre { 
+            background: #f6f8fa; 
+            padding: 15px; 
+            overflow: auto; 
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+
+        /* Curriculum Styles */
+        .search-box {
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            text-align: center;
+            min-width: 150px;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4facfe;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.8em;
+            border-radius: 15px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f1f3f4;
+        }
+
+        .modal-header h2 {
+            color: #333;
+            font-weight: 600;
+        }
+
+        .close {
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .form-row-modal {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #c62828;
+        }
+
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #2e7d32;
+        }
+
+        .curriculum-selector {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #e9ecef;
+        }
+
+        .table-container {
+            padding: 30px;
+            overflow-x: auto;
+        }
+
+        .curriculum-selector h4 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .curriculum-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin: 5px 0;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .curriculum-item:hover {
+            background: #f0f8ff;
+            border-color: #4facfe;
+        }
+
+        .curriculum-item.selected {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+
+        .curriculum-info {
+            flex: 1;
+        }
+
+        .curriculum-code {
+            font-weight: bold;
+            color: #2196f3;
+        }
+
+        .curriculum-name {
+            color: #333;
+            margin-top: 2px;
+        }
+
+        .curriculum-details {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .btn-add-curriculum {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+
+        .btn-add-curriculum:hover {
+            background: #45a049;
+        }
+
+        .del {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+
+        .del:hover {
+            background: #cc0000;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row-modal {
+                grid-template-columns: 1fr;
+            }
+
+            .stats {
+                justify-content: center;
+            }
+
+            .nav-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 TKB & Curriculum Management</h1>
+            <div class="nav-buttons">
+                <button class="btn btn-primary active" onclick="showTKB()">📅 Lập Lịch</button>
+                <button class="btn btn-secondary" onclick="showCurriculum()">📚 Quản lý CTĐT</button>
+                <button class="btn btn-secondary" onclick="goToRoomSchedule()">🏢 Lịch Phòng Học</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- TKB Section -->
+            <div id="tkbSection" class="section active">
+                
+
+                <div class="card">
+                    <h3>Nhập nhiều CT (bảng)</h3>
+                    
+                    <!-- System Type Selection -->
+                    <div class="form-row">
+                        <label>Loại hệ đào tạo:</label>
+                        <select id="heDacThuSelect" onchange="filterDepartments()">
+                            <option value="">Hệ thường</option>
+                            <option value="he_dac_thu">Hệ đặc thù</option>
+                            <option value="chung">Chung</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Khoa Selection (always visible) -->
+                    <div class="form-row">
+                        <label>Chọn khóa:</label>
+                        <select id="khoaSelect" onchange="loadMajorGroups()">
+                            <option value="">-- Chọn khóa --</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Department/Major Selection -->
+                    <div class="form-row">
+                        <label id="departmentLabel">Chọn bộ môn:</label>
+                        <select id="departmentSelect">
+                            <option value="">-- Chọn bộ môn --</option>
+                        </select>
+                    </div>
+                    
+                    
+                    
+                    <!-- Batch Table -->
+                    <table id="batchTable" style="margin-top: 20px;">
+        <thead>
+            <tr>
+                <th>Mã môn</th>
+                <th>Tên môn</th>
+                <th>Số tiết</th>
+                <th>Sĩ số</th>
+                <th>Sĩ số một lớp</th>
+                <th>Khóa</th>
+                <th>Ngành</th>
+                <th>Gộp ngành</th>
+                <th>Đăng ký chung</th>
+                <th>Chọn môn khác khóa</th>
+                <th>Xóa</th>
+            </tr>
+        </thead>
+                        <tbody id="batchBody">
+                        </tbody>
+                    </table>
+                    
+                    <!-- Major Combination Section (hidden by default) -->
+                    <div id="majorCombinationSection" style="display: none; margin-top: 20px;">
+                        <h4>Kết hợp ngành học chung:</h4>
+                        <div id="majorCombinations">
+                            <!-- Major combinations will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 10px;">
+                        <button id="runBatchBtn" class="btn btn-primary">🚀 Sinh TKB Batch</button>
+                    </div>
+                </div>
+
+                <div id="result"></div>
+            </div>
+
+            <!-- Curriculum Section -->
+            <div id="curriculumSection" class="section">
+                <div class="controls">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm theo mã môn, tên môn, khoa, ngành...">
+                    </div>
+                    <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="loadExcelData()">📥 Tải từ Excel</button>
+                        <button class="btn btn-success" onclick="openAddModal()">➕ Thêm mới</button>
+                        <button class="btn btn-warning" onclick="refreshCurriculumData()">🔄 Làm mới</button>
+                    </div>
+
+                    <div class="stats" id="statsContainer">
+                        <div class="stat-card">
+                            <div class="stat-number" id="totalItems">0</div>
+                            <div class="stat-label">Tổng môn học</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div id="loadingMessage" class="loading">Đang tải dữ liệu...</div>
+                    <div id="errorMessage" class="error" style="display: none;"></div>
+                    <div id="successMessage" class="success" style="display: none;"></div>
+                    
+                    <table class="table" id="dataTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Mã môn</th>
+                                <th>Tên môn</th>
+                                <th>Khoa</th>
+                                <th>Ngành</th>
+                                <th>Mã CN</th>
+                                <th>Sĩ số</th>
+                                <th>Số lớp</th>
+                                <th>Tín chỉ</th>
+                                <th>Tổng tiết LT</th>
+                                <th>Bộ môn</th>
+                                <th>Hình thức thi</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Curriculum Add/Edit Modal -->
+    <div id="itemModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Thêm môn học mới</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <form id="itemForm">
+                <div class="form-row-modal">
+                    <div class="form-group">
+                        <label for="mmh">Mã môn học *</label>
+                        <input type="text" id="mmh" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="tmh">Tên môn học *</label>
+                        <input type="text" id="tmh" required>
+                    </div>
+                </div>
+
+                <div class="form-row-modal">
+                    <div class="form-group">
+                        <label for="khoa">Khoa *</label>
+                        <input type="text" id="khoa" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="nganh">Ngành *</label>
+                        <input type="text" id="nganh" required>
+                    </div>
+                </div>
+
+                <div class="form-row-modal">
+                    <div class="form-group">
+                        <label for="ma_cn">Mã chuyên ngành</label>
+                        <input type="text" id="ma_cn">
+                    </div>
+                    <div class="form-group">
+                        <label for="he_dac_thu">Hệ đặc thù</label>
+                        <input type="text" id="he_dac_thu">
+                    </div>
+                </div>
+
+                <div class="form-row-modal">
+                    <div class="form-group">
+                        <label for="si_so">Sĩ số *</label>
+                        <input type="number" id="si_so" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="so_lop">Số lớp *</label>
+                        <input type="number" id="so_lop" required>
+                    </div>
+                </div>
+
+                <div class="form-row-modal">
+                    <div class="form-group">
+                        <label for="tc">Tín chỉ *</label>
+                        <input type="number" id="tc" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="ts_tiet">Tổng số tiết *</label>
+                        <input type="number" id="ts_tiet" required>
+                    </div>
+                </div>
+
+                <div class="form-row-modal">
+                    <div class="form-group">
+                        <label for="ly_thuyet">Lý thuyết</label>
+                        <input type="number" id="ly_thuyet" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="tl_bt">TL/BT</label>
+                        <input type="number" id="tl_bt" value="0">
+                    </div>
+                </div>
+
+                <div class="form-row-modal">
+                    <div class="form-group">
+                        <label>Tổng tiết lý thuyết (tự động)</label>
+                        <input type="text" id="total_ly_thuyet" readonly style="background-color: #f8f9fa; color: #6c757d;">
+                    </div>
+                    <div class="form-group">
+                        <!-- Empty space for alignment -->
+                    </div>
+                </div>
+
+                <div class="form-row-modal">
+                    <div class="form-group">
+                        <label for="bt_lon">BT lớn</label>
+                        <input type="number" id="bt_lon" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="tn_th">TN/TH</label>
+                        <input type="number" id="tn_th" value="0">
+                    </div>
+                </div>
+
+                <div class="form-row-modal">
+                    <div class="form-group">
+                        <label for="tu_hoc">Tự học</label>
+                        <input type="number" id="tu_hoc" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="doanh_nghiep_lab">Doanh nghiệp/Lab</label>
+                        <input type="number" id="doanh_nghiep_lab" value="0">
+                    </div>
+                </div>
+
+                <div class="form-row-modal">
+                    <div class="form-group">
+                        <label for="khoa_1">Khoa 1</label>
+                        <input type="text" id="khoa_1">
+                    </div>
+                    <div class="form-group">
+                        <label for="bo_mon">Bộ môn</label>
+                        <input type="text" id="bo_mon">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="dk_tq_ts">Điều kiện tiên quyết</label>
+                    <input type="text" id="dk_tq_ts">
+                </div>
+
+                <div class="form-row-modal">
+                    <div class="form-group">
+                        <label for="hinh_thuc_thi">Hình thức thi</label>
+                        <input type="text" id="hinh_thuc_thi">
+                    </div>
+                    <div class="form-group">
+                        <label for="nn_giang_day">Ngôn ngữ giảng dạy</label>
+                        <input type="text" id="nn_giang_day">
+                    </div>
+                </div>
+
+                <div style="text-align: right; margin-top: 30px;">
+                    <button type="button" class="btn btn-danger" onclick="closeModal()" style="margin-right: 10px;">Hủy</button>
+                    <button type="submit" class="btn btn-success">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Dynamic API base - works for both localhost and external access
+        const API_BASE = window.location.protocol + '//' + window.location.host;
+        
+        // Spring Boot API for TKB scheduling and rooms
+        const SPRING_BOOT_API = 'http://localhost:8080/api';
+        
+        // Global variable to store sĩ số/lớp lookup data
+        let siSoLookupData = {};
+
+        // Load sĩ số/lớp data on page load
+        async function loadSiSoLookupData() {
+            try {
+                const response = await fetch(`${API_BASE}/curriculum/si-so-lookup`);
+                if (response.ok) {
+                    siSoLookupData = await response.json();
+                    console.log(`Loaded ${Object.keys(siSoLookupData).length} sĩ số/lớp records`);
+                }
+            } catch (error) {
+                console.error('Error loading sĩ số/lớp data:', error);
+            }
+        }
+
+        // Function to get sĩ số/lớp data for a subject and major
+        function getSiSoData(mmh, nganh) {
+            const key = `${mmh}|${nganh}`;
+            console.log(`[DEBUG] getSiSoData called with key: ${key}`);
+            console.log(`[DEBUG] siSoLookupData keys count: ${Object.keys(siSoLookupData).length}`);
+            const result = siSoLookupData[key] || null;
+            console.log(`[DEBUG] getSiSoData result:`, result);
+            return result;
+        }
+
+        // Load sĩ số/lớp data when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSiSoLookupData();
+        });
+        let currentCurriculumData = [];
+        let editingId = null;
+
+        // Navigation
+        function showTKB() {
+            document.getElementById('tkbSection').classList.add('active');
+            document.getElementById('curriculumSection').classList.remove('active');
+            document.querySelector('.btn-primary').classList.add('active');
+            document.querySelector('.btn-secondary').classList.remove('active');
+        }
+
+        function showCurriculum() {
+            document.getElementById('tkbSection').classList.remove('active');
+            document.getElementById('curriculumSection').classList.add('active');
+            document.querySelector('.btn-primary').classList.remove('active');
+            document.querySelector('.btn-secondary').classList.add('active');
+            loadCurriculumData();
+        }
+
+        function goToRoomSchedule() {
+            window.location.href = '/web/room_schedule.html';
+        }
+
+        // TKB Functions (existing code)
+        document.addEventListener('DOMContentLoaded', function() {
+            setupTKBEventListeners();
+            setupCurriculumEventListeners();
+            loadCurriculumData();
+            loadOccupiedRooms(); // Load occupied rooms on page load
+        });
+
+        function setupTKBEventListeners() {
+            // Department selection
+            const deptSel = document.getElementById('departmentSelect');
+            if (deptSel) deptSel.addEventListener('change', loadSubjectsByDepartment);
+            const runBtn = document.getElementById('runBatchBtn');
+            if (runBtn) runBtn.onclick = runBatch;
+            // Removed listeners for deleted controls
+            
+            // Load departments on page load
+            loadDepartments();
+        }
+
+        // Curriculum Functions
+        function setupCurriculumEventListeners() {
+            document.getElementById('searchInput').addEventListener('input', function(e) {
+                const query = e.target.value;
+                if (query.length >= 2 || query.length === 0) {
+                    searchCurriculumData(query);
+                }
+            });
+
+            document.getElementById('itemForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveCurriculumItem();
+            });
+
+            // Auto-calculate total ly thuyet
+            document.getElementById('ly_thuyet').addEventListener('input', calculateTotalLyThuyet);
+            document.getElementById('tl_bt').addEventListener('input', calculateTotalLyThuyet);
+        }
+
+        function calculateTotalLyThuyet() {
+            const lyThuyet = parseInt(document.getElementById('ly_thuyet').value) || 0;
+            const tlBt = parseInt(document.getElementById('tl_bt').value) || 0;
+            const total = lyThuyet + tlBt;
+            document.getElementById('total_ly_thuyet').value = total;
+        }
+
+        async function loadCurriculumData() {
+            try {
+                showLoading(true);
+                const response = await fetch(`${API_BASE}/curriculum`);
+                if (!response.ok) throw new Error('Failed to load data');
+                
+                currentCurriculumData = await response.json();
+                renderCurriculumTable(currentCurriculumData);
+                updateStats();
+                showLoading(false);
+            } catch (error) {
+                showError('Lỗi khi tải dữ liệu: ' + error.message);
+                showLoading(false);
+            }
+        }
+
+        async function loadExcelData() {
+            try {
+                showLoading(true);
+                const response = await fetch(`${API_BASE}/curriculum/load-excel`, {
+                    method: 'POST'
+                });
+                if (!response.ok) throw new Error('Failed to load Excel data');
+                
+                const result = await response.json();
+                showSuccess(result.message);
+                await loadCurriculumData();
+            } catch (error) {
+                showError('Lỗi khi tải dữ liệu từ Excel: ' + error.message);
+                showLoading(false);
+            }
+        }
+
+        async function searchCurriculumData(query) {
+            try {
+                const response = await fetch(`${API_BASE}/curriculum/search?q=${encodeURIComponent(query)}`);
+                if (!response.ok) throw new Error('Search failed');
+                
+                const results = await response.json();
+                renderCurriculumTable(results);
+            } catch (error) {
+                showError('Lỗi khi tìm kiếm: ' + error.message);
+            }
+        }
+
+        function renderCurriculumTable(data) {
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 40px; color: #666;">Không có dữ liệu</td></tr>';
+                document.getElementById('dataTable').style.display = 'table';
+                return;
+            }
+
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.id}</td>
+                    <td><strong>${item.mmh}</strong></td>
+                    <td>${item.tmh}</td>
+                    <td>${item.khoa}</td>
+                    <td>${item.nganh}</td>
+                    <td>${item.ma_cn || '-'}</td>
+                    <td>${item.si_so}</td>
+                    <td>${item.so_lop}</td>
+                    <td>${item.tc}</td>
+                    <td>${(item.ly_thuyet || 0) + (item.tl_bt || 0)}</td>
+                    <td>${item.bo_mon || '-'}</td>
+                    <td>${item.hinh_thuc_thi || '-'}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn btn-primary btn-sm" onclick="editCurriculumItem(${item.id})">✏️</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteCurriculumItem(${item.id})">🗑️</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('dataTable').style.display = 'table';
+        }
+
+        function updateStats() {
+            document.getElementById('totalItems').textContent = currentCurriculumData.length;
+        }
+
+        function openAddModal() {
+            editingId = null;
+            document.getElementById('modalTitle').textContent = 'Thêm môn học mới';
+            document.getElementById('itemForm').reset();
+            document.getElementById('total_ly_thuyet').value = '0';
+            document.getElementById('itemModal').style.display = 'block';
+        }
+
+        function editCurriculumItem(id) {
+            const item = currentCurriculumData.find(i => i.id === id);
+            if (!item) return;
+
+            editingId = id;
+            document.getElementById('modalTitle').textContent = 'Chỉnh sửa môn học';
+            
+            // Fill form with item data
+            Object.keys(item).forEach(key => {
+                const element = document.getElementById(key);
+                if (element) {
+                    element.value = item[key] || '';
+                }
+            });
+
+            // Calculate total ly thuyet
+            calculateTotalLyThuyet();
+
+            document.getElementById('itemModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('itemModal').style.display = 'none';
+            editingId = null;
+        }
+
+        async function saveCurriculumItem() {
+            try {
+                const formData = new FormData(document.getElementById('itemForm'));
+                const itemData = {};
+                
+                // Collect form data
+                const fields = ['mmh', 'tmh', 'khoa', 'nganh', 'ma_cn', 'he_dac_thu', 'mmh_1', 
+                              'si_so', 'so_lop', 'tc', 'ts_tiet', 'ly_thuyet', 'tl_bt', 'bt_lon', 
+                              'tn_th', 'tu_hoc', 'doanh_nghiep_lab', 'khoa_1', 'bo_mon', 'dk_tq_ts', 
+                              'mmh_2', 'hinh_thuc_thi', 'nn_giang_day'];
+                
+                fields.forEach(field => {
+                    const element = document.getElementById(field);
+                    if (element) {
+                        const value = element.value;
+                        if (field === 'si_so' || field === 'so_lop' || field === 'tc' || 
+                            field === 'ts_tiet' || field === 'ly_thuyet' || field === 'tl_bt' || 
+                            field === 'bt_lon' || field === 'tn_th' || field === 'tu_hoc' || 
+                            field === 'doanh_nghiep_lab') {
+                            itemData[field] = parseInt(value) || 0;
+                        } else {
+                            itemData[field] = value || null;
+                        }
+                    }
+                });
+
+                const url = editingId ? 
+                    `${API_BASE}/curriculum/${editingId}` : 
+                    `${API_BASE}/curriculum`;
+                
+                const method = editingId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(itemData)
+                });
+
+                if (!response.ok) throw new Error('Failed to save item');
+
+                showSuccess(editingId ? 'Cập nhật thành công!' : 'Thêm mới thành công!');
+                closeModal();
+                await loadCurriculumData();
+            } catch (error) {
+                showError('Lỗi khi lưu: ' + error.message);
+            }
+        }
+
+        async function deleteCurriculumItem(id) {
+            if (!confirm('Bạn có chắc chắn muốn xóa môn học này?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/curriculum/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) throw new Error('Failed to delete item');
+
+                showSuccess('Xóa thành công!');
+                await loadCurriculumData();
+            } catch (error) {
+                showError('Lỗi khi xóa: ' + error.message);
+            }
+        }
+
+        function refreshCurriculumData() {
+            loadCurriculumData();
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingMessage').style.display = show ? 'block' : 'none';
+            document.getElementById('dataTable').style.display = show ? 'none' : 'table';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMessage');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        function showInfo(message) {
+            let infoDiv = document.getElementById('infoMessage');
+            if (!infoDiv) {
+                // Create info message div if it doesn't exist
+                const div = document.createElement('div');
+                div.id = 'infoMessage';
+                div.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #17a2b8; color: white; padding: 10px 20px; border-radius: 5px; z-index: 1000; display: none;';
+                document.body.appendChild(div);
+                infoDiv = div;
+            }
+            infoDiv.textContent = message;
+            infoDiv.style.display = 'block';
+            setTimeout(() => {
+                infoDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // Curriculum search for TKB
+        function searchCurriculum() {
+            const query = document.getElementById('curriculumSearch').value.toLowerCase();
+            const results = currentCurriculumData.filter(item => 
+                item.mmh.toLowerCase().includes(query) || 
+                item.tmh.toLowerCase().includes(query) ||
+                item.khoa.toLowerCase().includes(query) ||
+                item.nganh.toLowerCase().includes(query)
+            );
+            renderCurriculumResults(results);
+        }
+
+        function renderCurriculumResults(items) {
+            const container = document.getElementById('curriculumResults');
+            container.innerHTML = '';
+
+            if (items.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">Không tìm thấy môn học nào</div>';
+                return;
+            }
+
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'curriculum-item';
+                div.innerHTML = `
+                    <div class="curriculum-info">
+                        <div class="curriculum-code">${item.mmh}</div>
+                        <div class="curriculum-name">${item.tmh}</div>
+                        <div class="curriculum-details">Khoa: ${item.khoa} | Ngành: ${item.nganh} | Sĩ số: ${item.si_so} | Số lớp: ${item.so_lop}</div>
+                    </div>
+                    <button class="btn-add-curriculum" onclick="addToTKB('${item.mmh}', '${item.tmh}', ${item.si_so}, ${item.so_lop})">Thêm</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function addToTKB(mmh, tmh, siso, solop) {
+            // Add to batch table instead of CT4 form
+            addBatchRow({
+                ma: mmh,
+                ten: tmh,
+                tiet: 24, // Default value
+                lop: solop,
+                siso: siso,
+                subject_type: '',
+                student_year: '',
+                multi_sections: false
+            });
+            
+            // Clear search
+            document.getElementById('curriculumSearch').value = '';
+            document.getElementById('curriculumResults').innerHTML = '';
+            
+            showSuccess(`Đã thêm ${mmh} - ${tmh} vào bảng lập lịch`);
+        }
+
+        // TKB Functions
+        
+        // Load departments
+        async function loadDepartments() {
+            try {
+                const response = await fetch(`${API_BASE}/curriculum/departments`);
+                const departments = await response.json();
+                
+                const select = document.getElementById('departmentSelect');
+                select.innerHTML = '<option value="">-- Chọn bộ môn --</option>';
+                
+                departments.forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept;
+                    option.textContent = dept;
+                    select.appendChild(option);
+                });
+                
+                // Update departments based on selected system type
+                filterDepartments();
+            } catch (error) {
+                showError('Lỗi khi tải danh sách bộ môn: ' + error.message);
+            }
+        }
+
+        async function filterDepartments() {
+            try {
+                const heDacThuSelect = document.getElementById('heDacThuSelect');
+                const departmentSelect = document.getElementById('departmentSelect');
+                const departmentLabel = document.getElementById('departmentLabel');
+                const selectedDept = departmentSelect.value;
+                
+                if (heDacThuSelect.value === 'he_dac_thu') {
+                    // Special system - show nganh by khoa
+                    departmentLabel.textContent = 'Chọn ngành:';
+                    
+                    // Show khoa selection for special system
+                    const khoaSelect = document.getElementById('khoaSelect');
+                    const khoaRow = khoaSelect ? khoaSelect.closest('.form-row') : null;
+                    if (khoaRow) khoaRow.style.display = '';
+                    
+                    // Update table header for special system
+                    updateTableHeader();
+                    
+                    // Load khoas first
+                    await loadKhoas();
+                    
+                    // Load nganh for selected khoa
+                    const selectedKhoa = khoaSelect?.value || '';
+                    if (selectedKhoa) {
+                        await loadMajorGroups(selectedKhoa);
+                    }
+                    
+                    departmentSelect.innerHTML = '<option value="">-- Chọn ngành --</option>';
+                } else if (heDacThuSelect.value === 'chung') {
+                    // Common subjects system
+                    departmentLabel.textContent = 'Chọn môn:';
+                    
+                    // Hide khoa selection for common subjects
+                    const khoaSelect = document.getElementById('khoaSelect');
+                    const khoaRow = khoaSelect ? khoaSelect.closest('.form-row') : null;
+                    if (khoaRow) khoaRow.style.display = 'none';
+                    
+                    // Update table header to hide nganh column
+                    updateTableHeader();
+                    
+                    // Load all common subjects directly
+                    await loadAllCommonSubjects();
+                } else {
+                    // Regular system - new logic with khoa selection
+                    departmentLabel.textContent = 'Chọn ngành:';
+                    
+                    // Show khoa selection for regular system
+                    const khoaSelect = document.getElementById('khoaSelect');
+                    const khoaRow = khoaSelect ? khoaSelect.closest('.form-row') : null;
+                    if (khoaRow) khoaRow.style.display = '';
+                    
+                    // Update table header for regular system
+                    updateTableHeader();
+                    
+                    // Always load khoas for regular system
+                    await loadKhoas();
+                    
+                    departmentSelect.innerHTML = '<option value="">-- Chọn ngành --</option>';
+                }
+                
+                // Clear existing data when switching system types
+                document.getElementById('batchBody').innerHTML = '';
+                
+                // Update table header based on system type
+                updateTableHeader();
+            } catch (error) {
+                showError('Lỗi khi lọc bộ môn: ' + error.message);
+            }
+        }
+
+        // Load khoas for special system
+        async function loadKhoas() {
+            try {
+                const response = await fetch(`${API_BASE}/curriculum/khoas`);
+                const data = await response.json();
+                
+                const khoaSelect = document.getElementById('khoaSelect');
+                khoaSelect.innerHTML = '<option value="">-- Chọn khóa --</option>';
+                
+                data.khoas.forEach(khoa => {
+                    const option = document.createElement('option');
+                    option.value = khoa;
+                    const formattedKhoa = khoa.toString().replace(/\.0$/, '');
+                    option.textContent = `Khóa ${formattedKhoa}`;
+                    khoaSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading khoas:', error);
+            }
+        }
+
+        // Load major groups for selected khoa
+        async function loadMajorGroups() {
+            try {
+                const heDacThuSelect = document.getElementById('heDacThuSelect');
+                const khoaSelect = document.getElementById('khoaSelect');
+                const departmentSelect = document.getElementById('departmentSelect');
+                const selectedKhoa = khoaSelect.value;
+                
+                if (!selectedKhoa) {
+                    departmentSelect.innerHTML = '<option value="">-- Chọn ngành --</option>';
+                    return;
+                }
+                
+                // Load major groups for regular system and special system
+                if (heDacThuSelect.value === '' || heDacThuSelect.value === 'he_dac_thu') {
+                    const isHeDacThu = heDacThuSelect.value === 'he_dac_thu';
+                    const response = await fetch(`${API_BASE}/curriculum/major-groups/${selectedKhoa}?he_dac_thu=${isHeDacThu}`);
+                    const data = await response.json();
+                    
+                    departmentSelect.innerHTML = '<option value="">-- Chọn ngành --</option>';
+                    
+                    data.major_groups.forEach(group => {
+                        const option = document.createElement('option');
+                        option.value = group.join(',');
+                        option.textContent = group.join(', ');
+                        departmentSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading major groups:', error);
+            }
+        }
+        
+        // Load all common subjects for dropdown
+        async function loadAllCommonSubjects() {
+            try {
+                const departmentSelect = document.getElementById('departmentSelect');
+                departmentSelect.innerHTML = '<option value="">-- Chọn môn --</option>';
+                
+                // Load all common subjects from all khoas using new endpoint
+                const response = await fetch(`${API_BASE}/curriculum/common-subjects`);
+                const data = await response.json();
+                
+                if (data.subjects && data.subjects.length > 0) {
+                    // Collect unique subjects by subject code
+                    const allCommonSubjects = new Map();
+                    
+                    data.subjects.forEach(subject => {
+                        const key = subject.mmh; // Use subject code as key
+                        if (!allCommonSubjects.has(key)) {
+                            allCommonSubjects.set(key, {
+                                mmh: subject.mmh,
+                                tmh: subject.tmh
+                            });
+                        }
+                    });
+                    
+                    // Add subjects to dropdown
+                    allCommonSubjects.forEach(subject => {
+                        const option = document.createElement('option');
+                        option.value = subject.mmh;
+                        option.textContent = `${subject.mmh} - ${subject.tmh}`;
+                        departmentSelect.appendChild(option);
+                    });
+                    
+                    console.log(`Loaded ${allCommonSubjects.size} common subjects`);
+                } else {
+                    console.error('No common subjects found:', data.error);
+                }
+            } catch (error) {
+                console.error('Error loading all common subjects:', error);
+                showError('Lỗi tải danh sách môn chung: ' + error.message);
+            }
+        }
+        
+        // Load selected common subject from all khoas
+        async function loadSelectedCommonSubject(subjectCode) {
+            try {
+                // Clear existing batch table
+                document.getElementById('batchBody').innerHTML = '';
+                
+                // Load all common subjects and filter by subject code
+                const response = await fetch(`${API_BASE}/curriculum/common-subjects`);
+                const data = await response.json();
+                
+                if (data.subjects && data.subjects.length > 0) {
+                    const subjectInstances = data.subjects.filter(subject => subject.mmh === subjectCode);
+                    
+                    // Group by khoa and calculate total enrollment per khoa
+                    const groupedByKhoa = {};
+                    subjectInstances.forEach(subject => {
+                        const khoa = subject.khoa;
+                        if (!groupedByKhoa[khoa]) {
+                        groupedByKhoa[khoa] = {
+                            mmh: subject.mmh,
+                            tmh: subject.tmh,
+                            khoa: khoa,
+                            totalSiSo: 0,
+                            nganh: 'Tất cả ngành', // Combined representation
+                            si_so_lop_from_lookup: null,
+                            si_so_lop_values: [], // Collect all si_so_lop values for this khoa
+                            tin_chi: subject.tin_chi || 3, // Default to 3 credits
+                            ly_thuyet: subject.ly_thuyet || 0,
+                            tl_bt: subject.tl_bt || 0,
+                            bt_lon: subject.bt_lon || 0,
+                            ts_tiet: subject.ts_tiet || 0
+                        };
+                        }
+                        groupedByKhoa[khoa].totalSiSo += subject.si_so || 0;
+                        
+                        // Collect si_so_lop values
+                        if (subject.si_so_lop_from_lookup) {
+                            groupedByKhoa[khoa].si_so_lop_values.push(subject.si_so_lop_from_lookup);
+                        }
+                    });
+                    
+                    // Calculate final si_so_lop for each khoa
+                    Object.values(groupedByKhoa).forEach(group => {
+                        if (group.si_so_lop_values.length > 0) {
+                            // Use the most common value, or average if all different
+                            const counts = {};
+                            group.si_so_lop_values.forEach(val => {
+                                counts[val] = (counts[val] || 0) + 1;
+                            });
+                            
+                            // Find most common value
+                            let mostCommon = null;
+                            let maxCount = 0;
+                            for (const [val, count] of Object.entries(counts)) {
+                                if (count > maxCount) {
+                                    maxCount = count;
+                                    mostCommon = parseInt(val);
+                                }
+                            }
+                            
+                            group.si_so_lop_from_lookup = mostCommon;
+                        } else {
+                            // No lookup data, use intelligent default based on total enrollment
+                            if (group.totalSiSo <= 50) {
+                                group.si_so_lop_from_lookup = group.totalSiSo;
+                            } else if (group.totalSiSo <= 100) {
+                                group.si_so_lop_from_lookup = 50;
+                            } else if (group.totalSiSo <= 200) {
+                                group.si_so_lop_from_lookup = 60;
+                            } else if (group.totalSiSo <= 500) {
+                                group.si_so_lop_from_lookup = 80;
+                            } else {
+                                group.si_so_lop_from_lookup = 100;
+                            }
+                        }
+                        
+                        // Clean up temporary array
+                        delete group.si_so_lop_values;
+                    });
+                    
+                    // Add one row per khoa
+                    Object.values(groupedByKhoa).forEach(groupedSubject => {
+                        addBatchRow(groupedSubject);
+                    });
+                    
+                    if (Object.keys(groupedByKhoa).length > 0) {
+                        showSuccess(`Đã thêm ${Object.keys(groupedByKhoa).length} khóa của môn "${subjectCode}" vào bảng`);
+                    } else {
+                        showInfo(`Không tìm thấy môn "${subjectCode}" trong danh sách môn chung`);
+                    }
+                } else {
+                    showInfo(`Không tìm thấy môn "${subjectCode}" trong danh sách môn chung`);
+                }
+            } catch (error) {
+                console.error('Error loading selected common subject:', error);
+                showError('Lỗi tải môn chung: ' + error.message);
+            }
+        }
+        
+        // Load subjects by department and auto-add to batch
+        async function loadSubjectsByDepartment() {
+            const department = document.getElementById('departmentSelect').value;
+            const khoaSelect = document.getElementById('khoaSelect');
+            const selectedKhoa = khoaSelect?.value || '';
+            
+            // Clear table if not selected
+            if (!department) {
+                document.getElementById('batchBody').innerHTML = '';
+                return;
+            }
+            
+            try {
+                const heDacThuSelect = document.getElementById('heDacThuSelect');
+                
+                if (heDacThuSelect.value === 'he_dac_thu') {
+                    // Special system - use major group logic
+                    if (!selectedKhoa) {
+                        showError('Vui lòng chọn khóa trước');
+                        return;
+                    }
+                    
+                    const response = await fetch(`${API_BASE}/curriculum/subjects-by-major-group?khoa=${selectedKhoa}&major_group=${encodeURIComponent(department)}`);
+                    const subjects = await response.json();
+                    
+                    // Clear existing batch table
+                    document.getElementById('batchBody').innerHTML = '';
+                    
+                    // Add all subjects (including different years for same subject)
+                    subjects.forEach(subject => addBatchRow(subject));
+                    showSuccess(`Đã thêm ${subjects.length} môn học từ nhóm ngành "${department}" vào bảng`);
+                } else if (heDacThuSelect.value === 'chung') {
+                    // Common subjects - load selected subject from all khoas
+                    await loadSelectedCommonSubject(department);
+                } else {
+                    // Regular system - use new major group logic
+                    if (!selectedKhoa) {
+                        showError('Vui lòng chọn khóa trước');
+                        return;
+                    }
+                    
+                    const response = await fetch(`${API_BASE}/curriculum/subjects-by-major-group?khoa=${selectedKhoa}&major_group=${encodeURIComponent(department)}`);
+                    const subjects = await response.json();
+                    
+                    // Clear existing batch table
+                    document.getElementById('batchBody').innerHTML = '';
+                    
+                    // Add all subjects (including different years for same subject)
+                    subjects.forEach(subject => addBatchRow(subject));
+                    showSuccess(`Đã thêm ${subjects.length} môn học từ nhóm ngành "${department}" vào bảng`);
+                }
+            } catch (error) {
+                showError('Lỗi khi tải danh sách môn học: ' + error.message);
+            }
+        }
+        
+        
+        // Hide rows for combined majors
+        function hideCombinedMajorRows(selectedMajors, subjectId) {
+            const allRows = document.getElementById('batchBody').querySelectorAll('tr');
+            const heDacThuSelect = document.getElementById('heDacThuSelect');
+            const isHeDacThu = heDacThuSelect.value === 'he_dac_thu';
+            const nganhColumnIndex = isHeDacThu ? 6 : 5; // Hệ đặc thù: index 6, Hệ thường: index 5
+            
+            allRows.forEach(row => {
+                const tds = row.querySelectorAll('td');
+                if (tds.length > nganhColumnIndex) {
+                    const nganhInput = tds[nganhColumnIndex]?.querySelector('input');
+                    const rowSubjectId = tds[0]?.querySelector('input')?.value;
+                    
+                    if (nganhInput && rowSubjectId === subjectId) {
+                        const rowMajor = nganhInput.value;
+                        if (selectedMajors.includes(rowMajor)) {
+                            row.style.display = 'none';
+                            row.dataset.hiddenByCombination = 'true';
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Toggle major combination section
+        function toggleMajorCombination(checkbox) {
+            const row = checkbox.closest('tr');
+            const subjectId = row.querySelector('input[readonly]').value;
+            
+            if (checkbox.checked) {
+                loadMajorCombinations(subjectId, row);
+            } else {
+                // Remove any existing major combination rows directly following this row
+                let next = row.nextElementSibling;
+                while (next && next.classList && next.classList.contains('major-combination-row')) {
+                    const toRemove = next;
+                    next = next.nextElementSibling;
+                    toRemove.remove();
+                }
+                
+                // Show hidden rows for this subject
+                showHiddenMajorRows(subjectId);
+            }
+        }
+        
+        // Update major row visibility based on current combinations
+        function updateMajorRowVisibility(uniqueId, currentMajor) {
+            // Extract subjectId from uniqueId (format: subjectId_timestamp_random)
+            const subjectId = uniqueId.split('_')[0];
+            
+            const allRows = document.getElementById('batchBody').querySelectorAll('tr');
+            const heDacThuSelect = document.getElementById('heDacThuSelect');
+            const isHeDacThu = heDacThuSelect.value === 'he_dac_thu';
+            const nganhColumnIndex = isHeDacThu ? 6 : 5;
+            
+            // Get selected majors from dropdowns only (not including current major)
+            const comboContainer = document.getElementById(`majorCombinations_${uniqueId}`);
+            const selectedMajors = new Set();
+            
+            if (comboContainer) {
+                // Only add majors from dropdowns (Ngành 2, Ngành 3, etc.)
+                const selects = comboContainer.querySelectorAll('.major-select');
+                selects.forEach(select => {
+                    if (select.value) {
+                        selectedMajors.add(select.value);
+                    }
+                });
+            }
+            
+            // Find the specific subject row that this combination belongs to
+            const combinationSection = comboContainer.closest('tr');
+            const mainSubjectRow = combinationSection.previousElementSibling;
+            const mainSubjectMajor = mainSubjectRow?.querySelectorAll('td')[nganhColumnIndex]?.querySelector('input')?.value;
+            
+            console.log(`[DEBUG MAIN SUBJECT] Main subject major: ${mainSubjectMajor}`);
+            
+            // Only process rows that are related to this specific combination
+            // Use a more specific approach: only affect rows that are directly related to this uniqueId
+            allRows.forEach(row => {
+                const tds = row.querySelectorAll('td');
+                if (tds.length > nganhColumnIndex) {
+                    const nganhInput = tds[nganhColumnIndex]?.querySelector('input');
+                    const rowSubjectId = tds[0]?.querySelector('input')?.value;
+                    
+                    if (nganhInput && rowSubjectId === subjectId) {
+                        const rowMajor = nganhInput.value;
+                        
+                        // Skip combination rows
+                        if (row.classList.contains('major-combination-row')) {
+                            return;
+                        }
+                        
+                        // Only hide rows that have the same subject AND major as selected in dropdown
+                        // AND are not the main subject row
+                        if (rowMajor === mainSubjectMajor) {
+                            // This is the main subject row - never hide it
+                            if (row.dataset.hiddenByCombination === 'true') {
+                                console.log(`[DEBUG SHOW] Showing main subject: ${rowSubjectId} (${rowMajor})`);
+                                row.style.display = '';
+                                delete row.dataset.hiddenByCombination;
+                            }
+                        } else if (selectedMajors.has(rowMajor)) {
+                            // Hide if this is a selected major (being combined)
+                            // But only if it's not already hidden by another combination
+                            if (!row.dataset.hiddenByCombination || row.dataset.hiddenByCombination === uniqueId) {
+                                console.log(`[DEBUG HIDE] Hiding combined subject: ${rowSubjectId} (${rowMajor}) by ${uniqueId}`);
+                                row.style.display = 'none';
+                                row.dataset.hiddenByCombination = uniqueId;
+                            }
+                        } else if (row.dataset.hiddenByCombination === uniqueId) {
+                            // Only show if this specific combination was hiding it
+                            console.log(`[DEBUG SHOW] Showing row: ${rowSubjectId} (${rowMajor}) from ${uniqueId}`);
+                            row.style.display = '';
+                            delete row.dataset.hiddenByCombination;
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Show hidden rows for a subject
+        function showHiddenMajorRows(subjectId) {
+            const allRows = document.getElementById('batchBody').querySelectorAll('tr');
+            
+            allRows.forEach(row => {
+                const tds = row.querySelectorAll('td');
+                if (tds.length > 0) {
+                    const rowSubjectId = tds[0]?.querySelector('input')?.value;
+                    
+                    if (rowSubjectId === subjectId && row.dataset.hiddenByCombination === 'true') {
+                        row.style.display = '';
+                        delete row.dataset.hiddenByCombination;
+                    }
+                }
+            });
+        }
+        
+        // Toggle cross registration
+        function toggleCrossRegistration(checkbox) {
+            const row = checkbox.closest('tr');
+            const select = row.querySelector('select');
+            
+            if (checkbox.checked) {
+                select.disabled = false;
+                loadCrossRegistrationOptions(row);
+            } else {
+                select.disabled = true;
+                select.value = '';
+                select.innerHTML = '<option value="">-- Chọn môn khác khóa --</option>';
+                // Restore original row if it was merged
+                restoreOriginalRow(row);
+            }
+        }
+        
+        // Restore original row when cross registration is unchecked
+        function restoreOriginalRow(row) {
+            const originalData = row.dataset.originalData;
+            if (originalData) {
+                const data = JSON.parse(originalData);
+                const tds = row.querySelectorAll('td');
+                
+                // Restore original values
+                tds[2].querySelector('input').value = data.siso;
+                tds[4].querySelector('input').value = data.khoa; // Fixed column index
+                
+                // Show the merged row again
+                const mergedRowId = row.dataset.id;
+                const allRows = document.querySelectorAll('#batchBody tr');
+                allRows.forEach(otherRow => {
+                    if (otherRow.dataset.mergedInto == mergedRowId) {
+                        otherRow.style.display = '';
+                        delete otherRow.dataset.mergedInto;
+                    }
+                });
+                
+                // Remove original data marker
+                delete row.dataset.originalData;
+            }
+        }
+        
+        // Load cross registration options
+        function loadCrossRegistrationOptions(row) {
+            const currentMmh = row.querySelector('input[readonly]').value;
+            const currentKhoa = row.querySelector('input[type="text"]').value;
+            const select = row.querySelector('select');
+            
+            // Clear existing options
+            select.innerHTML = '<option value="">-- Chọn môn khác khóa --</option>';
+            
+            // Find other subjects with same mmh but different khoa
+            const allRows = document.querySelectorAll('#batchBody tr');
+            allRows.forEach(otherRow => {
+                if (otherRow === row) return;
+                
+                // Skip major combination rows (they have different structure)
+                if (otherRow.classList.contains('major-combination-row')) return;
+                
+                const otherMmh = otherRow.querySelector('input[readonly]')?.value;
+                const otherKhoa = otherRow.querySelector('input[type="text"]')?.value;
+                
+                if (otherMmh === currentMmh && otherKhoa !== currentKhoa) {
+                    const option = document.createElement('option');
+                    option.value = `${otherMmh}|${otherKhoa}`;
+                    option.textContent = `${otherMmh} - Khóa ${otherKhoa}`;
+                    select.appendChild(option);
+                }
+            });
+        }
+        
+        // Update cross registration options when other rows change
+        function updateCrossRegistrationOptions(select) {
+            const row = select.closest('tr');
+            const selectedValue = select.value;
+            
+            if (selectedValue) {
+                const [crossMmh, crossKhoa] = selectedValue.split('|');
+                console.log(`[DEBUG CROSS REGISTRATION] Selected: MMH=${crossMmh}, Khoa=${crossKhoa}, Full value=${selectedValue}`);
+                
+                // Find the cross registration row
+                const allRows = document.querySelectorAll('#batchBody tr');
+                for (const otherRow of allRows) {
+                    if (otherRow === row) continue;
+                    
+                    // Skip major combination rows (they have different structure)
+                    if (otherRow.classList.contains('major-combination-row')) continue;
+                    
+                    const otherTds = otherRow.querySelectorAll('td');
+                    
+                    // Skip rows that don't have enough columns
+                    if (otherTds.length < 5) continue;
+                    
+                    const otherMmh = otherTds[0].querySelector('input')?.value || '';
+                    const otherKhoa = otherTds[4].querySelector('input')?.value || '';
+                    
+                    if (otherMmh === crossMmh && otherKhoa === crossKhoa) {
+                        console.log(`[DEBUG CROSS REGISTRATION] Found matching row: MMH=${otherMmh}, Khoa=${otherKhoa}`);
+                        // Store original data before merging
+                        if (!row.dataset.originalData) {
+                            const currentSiso = parseInt(row.querySelectorAll('td')[2].querySelector('input')?.value, 10) || 0;
+                            const currentKhoa = row.querySelectorAll('td')[4].querySelector('input')?.value || ''; // Fixed column index
+                            row.dataset.originalData = JSON.stringify({
+                                siso: currentSiso,
+                                khoa: currentKhoa
+                            });
+                        }
+                        
+                        // Merge the rows
+                        const otherSiso = parseInt(otherTds[2].querySelector('input')?.value, 10) || 0;
+                        const currentSiso = parseInt(row.querySelectorAll('td')[2].querySelector('input')?.value, 10) || 0;
+                        const totalSiso = currentSiso + otherSiso;
+                        const currentKhoa = row.querySelectorAll('td')[4].querySelector('input')?.value || '';
+                        
+                        // Update current row
+                        row.querySelectorAll('td')[2].querySelector('input').value = totalSiso;
+                        // Clean currentKhoa to remove any existing dashes
+                        const cleanCurrentKhoa = currentKhoa.replace(/-.*$/, '');
+                        row.querySelectorAll('td')[4].querySelector('input').value = `${cleanCurrentKhoa}-${crossKhoa}`;
+                        
+                        // Hide the other row so it can be restored later
+                        console.log(`[DEBUG CROSS REGISTRATION] Hiding row: ${otherMmh} - Khóa ${otherKhoa}`);
+                        otherRow.style.display = 'none';
+                        otherRow.dataset.mergedInto = row.dataset.id;
+                        
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Load major combinations for a subject
+        async function loadMajorCombinations(subjectId, parentRow) {
+            try {
+                // Get current khoa and selected major group
+                const khoaSelect = document.getElementById('khoaSelect');
+                const departmentSelect = document.getElementById('departmentSelect');
+                const currentKhoa = khoaSelect?.value || '';
+                const selectedMajorGroup = departmentSelect?.value || '';
+                
+                if (!currentKhoa || !selectedMajorGroup) {
+                    showInfo('Vui lòng chọn khóa và ngành trước');
+                    return;
+                }
+                
+                // Get all subjects for the selected major group
+                const response = await fetch(`${API_BASE}/curriculum/subjects-by-major-group?khoa=${currentKhoa}&major_group=${selectedMajorGroup}`);
+                const subjects = await response.json();
+                
+                // Filter subjects that match the current subject ID
+                const matchingSubjects = subjects.filter(s => s.mmh === subjectId);
+                
+                if (matchingSubjects.length <= 1) {
+                    showInfo('Môn này chỉ có một ngành học trong nhóm đã chọn');
+                    return;
+                }
+                
+                // Get unique majors from matching subjects
+                const majors = [...new Set(matchingSubjects.map(s => s.nganh))];
+                
+                if (majors.length <= 1) {
+                    showInfo('Môn này chỉ có một ngành học trong nhóm đã chọn');
+                    return;
+                }
+                
+                // Create combination rows
+                // Create unique ID for this specific subject row
+                const uniqueId = `${subjectId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                
+                const combinationSection = document.createElement('tr');
+                combinationSection.className = 'major-combination-row';
+                combinationSection.innerHTML = `
+                    <td colspan="6">
+                        <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; border: 1px solid #e9ecef; max-width: 1000px; margin: 0 auto;">
+                            <h5 style="margin: 0 0 8px 0; font-size: 13px; color: #495057;">Kết hợp ngành học chung:</h5>
+                            <div id="majorCombinations_${uniqueId}" style="width: fit-content;">
+                                <!-- Major combinations will be added here -->
+                            </div>
+                            <button type="button" class="btn btn-sm btn-success" onclick="addMajorCombination('${uniqueId}')" style="padding: 4px 8px; font-size: 11px; margin-top: 5px;">Thêm kết hợp</button>
+                        </div>
+                    </td>
+                `;
+                
+                parentRow.parentNode.insertBefore(combinationSection, parentRow.nextSibling);
+                
+                // Automatically add one combination
+                addMajorCombination(uniqueId);
+                
+                // Update visibility after creating combination
+                setTimeout(() => {
+                    // Get current major from the parent row
+                    const heDacThuSelect = document.getElementById('heDacThuSelect');
+                    const isHeDacThu = heDacThuSelect.value === 'he_dac_thu';
+                    const nganhColumnIndex = isHeDacThu ? 6 : 5;
+                    const currentMajor = parentRow.querySelectorAll('td')[nganhColumnIndex]?.querySelector('input')?.value;
+                    updateMajorRowVisibility(uniqueId, currentMajor);
+                }, 100);
+                
+            } catch (error) {
+                showError('Lỗi khi tải thông tin ngành học: ' + error.message);
+            }
+        }
+        
+        // Add major combination
+        function addMajorCombination(uniqueId) {
+            const container = document.getElementById(`majorCombinations_${uniqueId}`);
+            if (!container) {
+                console.error(`Container not found for uniqueId: ${uniqueId}`);
+                return;
+            }
+            
+            const div = document.createElement('div');
+            div.className = 'major-combination-row';
+            div.style.cssText = 'margin: 5px 0; padding: 8px; border: 1px solid #ddd; border-radius: 3px; background: #fafafa;';
+            
+            // Get current major from the subject row
+            const majorCombinationRow = container.closest('tr');
+            const subjectRow = majorCombinationRow.previousElementSibling;
+            const heDacThuSelect = document.getElementById('heDacThuSelect');
+            const isHeDacThu = heDacThuSelect.value === 'he_dac_thu';
+            const nganhColumnIndex = isHeDacThu ? 6 : 5; // Hệ đặc thù: index 6, Hệ thường: index 5
+            const currentMajor = subjectRow?.querySelectorAll('td')[nganhColumnIndex]?.querySelector('input')?.value || '';
+            
+            // Extract subjectId from uniqueId for loadMajorsIntoSelects
+            const subjectId = uniqueId.split('_')[0];
+            
+            div.innerHTML = `
+                <div style="display: inline-flex; gap: 6px; align-items: center; flex-wrap: nowrap; border: 1px solid #ddd; padding: 4px 6px; border-radius: 3px; background: white;">
+                    <label style="font-size: 11px; font-weight: normal; white-space: nowrap;">Ngành 1:</label>
+                    <input type="text" class="major-1-display" value="${currentMajor}" style="width: 100px; padding: 2px 3px; font-size: 11px; background: #f8f9fa; border: 1px solid #ddd;" readonly>
+                    <label style="font-size: 11px; font-weight: normal; white-space: nowrap;">Ngành 2:</label>
+                    <select class="major-select" style="width: 100px; padding: 2px 3px; font-size: 11px;">
+                        <option value="">-- Chọn ngành --</option>
+                    </select>
+                    <label style="font-size: 11px; font-weight: normal; white-space: nowrap;">Ngành 3:</label>
+                    <select class="major-select" style="width: 100px; padding: 2px 3px; font-size: 11px;">
+                        <option value="">-- Chọn ngành --</option>
+                    </select>
+                    <label style="font-size: 11px; font-weight: normal; white-space: nowrap;">Sĩ số:</label>
+                    <input type="number" class="combo-total-enroll" placeholder="0" style="width: 60px; padding: 2px 3px; font-size: 11px; text-align: center;" readonly>
+                    <label style="font-size: 11px; font-weight: normal; white-space: nowrap;">Sĩ số/lớp:</label>
+                    <input type="number" class="combo-class-size" placeholder="0" style="width: 60px; padding: 2px 3px; font-size: 11px; text-align: center;">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.parentElement.remove()" style="padding: 2px 4px; font-size: 10px; border-radius: 2px;">Xóa</button>
+                </div>
+            `;
+            
+            container.appendChild(div);
+            
+            // Load majors into selects (excluding current major)
+            loadMajorsIntoSelects(subjectId, div, currentMajor);
+        }
+        
+        // Load majors into select elements
+        async function loadMajorsIntoSelects(subjectId, container, currentMajor = '') {
+            try {
+                const response = await fetch(`${API_BASE}/curriculum`);
+                const allSubjects = await response.json();
+                
+                // Get khoa from the current subject row
+                // Find the subject row that contains this major combination
+                const majorCombinationRow = container.closest('tr');
+                const subjectRow = majorCombinationRow.previousElementSibling;
+                
+                // Determine system type to get correct column index
+                const heDacThuSelect = document.getElementById('heDacThuSelect');
+                const isHeDacThu = heDacThuSelect.value === 'he_dac_thu';
+                const khoaColumnIndex = isHeDacThu ? 5 : 4; // Hệ đặc thù: index 5, Hệ thường: index 4
+                
+                const khoaInput = subjectRow?.querySelectorAll('td')[khoaColumnIndex]?.querySelector('input');
+                const currentKhoa = khoaInput?.value || '';
+                
+                // Get current department from dropdown
+                const departmentSelect = document.getElementById('departmentSelect');
+                const currentDepartment = departmentSelect?.value || '';
+                
+                console.log(`[DEBUG MAJOR LOADING] SubjectId: ${subjectId}, IsHeDacThu: ${isHeDacThu}, KhoaColumnIndex: ${khoaColumnIndex}, CurrentKhoa: ${currentKhoa}, CurrentDepartment: ${currentDepartment}`);
+                
+                // Get majors for this subject AND this khoa AND this department/major group only
+                // Handle khoa format mismatch: data has '2022.0' but input has '2022'
+                let relevantMajors;
+                
+                if (isHeDacThu) {
+                    // For special system: filter by bo_mon
+                    relevantMajors = [...new Set(
+                        allSubjects
+                            .filter(s => s.mmh === subjectId && 
+                                (s.khoa === currentKhoa || 
+                                 s.khoa === currentKhoa + '.0' ||
+                                 s.khoa === parseFloat(currentKhoa).toString()) &&
+                                s.bo_mon === currentDepartment)
+                            .map(s => s.nganh)
+                    )];
+                } else {
+                    // For regular system: filter by major group (comma-separated majors)
+                    const majorGroupMajors = currentDepartment.split(',').map(m => m.trim());
+                    relevantMajors = [...new Set(
+                        allSubjects
+                            .filter(s => s.mmh === subjectId && 
+                                (s.khoa === currentKhoa || 
+                                 s.khoa === currentKhoa + '.0' ||
+                                 s.khoa === parseFloat(currentKhoa).toString()) &&
+                                majorGroupMajors.includes(s.nganh))
+                            .map(s => s.nganh)
+                    )];
+                }
+                
+                console.log(`[DEBUG MAJOR LOADING] All subjects for ${subjectId}:`, allSubjects.filter(s => s.mmh === subjectId));
+                console.log(`[DEBUG MAJOR LOADING] Filtered by khoa ${currentKhoa}:`, allSubjects.filter(s => s.mmh === subjectId && s.khoa === currentKhoa));
+                console.log(`[DEBUG MAJOR LOADING] Relevant majors:`, relevantMajors);
+                
+                // Get already selected majors from OTHER combinations IN THE SAME SUBJECT ONLY
+                const subjectContainer = document.getElementById(`majorCombinations_${subjectId}`);
+                const usedMajors = new Set();
+                
+                if (subjectContainer) {
+                    const existingCombinations = subjectContainer.querySelectorAll('.major-combination-row');
+                    existingCombinations.forEach(comboRow => {
+                        const selects = comboRow.querySelectorAll('.major-select');
+                        selects.forEach(select => {
+                            if (select.value && select.value !== '') {
+                                usedMajors.add(select.value);
+                            }
+                        });
+                    });
+                }
+                
+                // Filter out already used majors and current major
+                const availableMajors = relevantMajors.filter(major => !usedMajors.has(major) && major !== currentMajor);
+                
+                const selects = container.querySelectorAll('.major-select');
+                selects.forEach(select => {
+                    availableMajors.forEach(major => {
+                        const option = document.createElement('option');
+                        option.value = major;
+                        option.textContent = major;
+                        select.appendChild(option);
+                    });
+                });
+
+                // Precompute map major->si_so for this subject
+                // Always use original data (si_so) for individual major enrollment, not lookup data
+                const majorToSiSo = new Map();
+                allSubjects.filter(s => s.mmh === subjectId).forEach(s => {
+                    // Always use original si_so for individual major enrollment
+                    const siSo = parseInt(s.si_so, 10) || 0;
+                    majorToSiSo.set(s.nganh, siSo);
+                });
+
+                // Attach listeners to recompute total enrollment when majors change
+                const recompute = () => {
+                    const selectsNow = container.querySelectorAll('.major-select');
+                    const inputTotal = container.querySelector('.combo-total-enroll');
+                    const classSizeInput = container.querySelector('.combo-class-size');
+                    let total = 0;
+                    
+                    // Add current major (Ngành 1) to total - use original data
+                    if (currentMajor) {
+                        total += majorToSiSo.get(currentMajor) || 0;
+                    }
+                    
+                    // Calculate total of ALL selected majors (Ngành 2, 3, etc.) - use original data
+                    selectsNow.forEach(select => {
+                        const major = select.value;
+                        if (major) {
+                            total += majorToSiSo.get(major) || 0;
+                        }
+                    });
+                    
+                    inputTotal.value = total;
+                    
+                    // Only update class size (sĩ số/lớp) from lookup data, not total enrollment
+                    updateClassSizeFromSelectedMajors(selectsNow, classSizeInput, subjectId);
+                };
+                
+                // Function to update class size (sĩ số/lớp) based on selected majors
+                // Note: This only updates sĩ số/lớp from lookup data, not total enrollment (sĩ số)
+                const updateClassSizeFromSelectedMajors = (selects, classSizeInput, subjectId) => {
+                    console.log(`[DEBUG] updateClassSizeFromSelectedMajors called with subjectId: ${subjectId}`);
+                    console.log(`[DEBUG] selects found:`, selects.length);
+                    console.log(`[DEBUG] classSizeInput found:`, !!classSizeInput);
+                    
+                    // Only apply this logic when there are actually selected majors (gộp ngành)
+                    let hasSelectedMajors = false;
+                    let selectedMajors = [];
+                    
+                    for (let select of selects) {
+                        if (select.value && select.value !== '') {
+                            hasSelectedMajors = true;
+                            selectedMajors.push(select.value);
+                            console.log(`[DEBUG] Selected major: ${select.value}`);
+                        }
+                    }
+                    
+                    console.log(`[DEBUG] hasSelectedMajors: ${hasSelectedMajors}, selectedMajors:`, selectedMajors);
+                    
+                    // Only proceed if there are selected majors (gộp ngành)
+                    if (!hasSelectedMajors || !subjectId) {
+                        console.log(`[DEBUG] Skipping - no selected majors or no subjectId`);
+                        return;
+                    }
+                    
+                    // Include the current major (Ngành 1) in the combination
+                    const allMajors = [currentMajor, ...selectedMajors].filter(major => major && major !== '');
+                    console.log(`[DEBUG] All majors including Ngành 1:`, allMajors);
+                    
+                    // Try to find lookup data for combined majors
+                    // First try: look for exact combination like "AT-KH"
+                    const combinedKey = `${subjectId}|${allMajors.join('-')}`;
+                    console.log(`[DEBUG] Looking for combined key: ${combinedKey}`);
+                    let lookupData = getSiSoData(subjectId, allMajors.join('-'));
+                    
+                    if (lookupData && lookupData.si_so_lop) {
+                        classSizeInput.value = lookupData.si_so_lop;
+                        console.log(`✅ Auto-updated class size for combined major ${combinedKey}: ${lookupData.si_so_lop}`);
+                        return;
+                    }
+                    
+                    // Second try: look for individual major data if no combined data found
+                    // Use the first selected major's data
+                    const firstMajor = selectedMajors[0];
+                    lookupData = getSiSoData(subjectId, firstMajor);
+                    
+                    if (lookupData && lookupData.si_so_lop) {
+                        classSizeInput.value = lookupData.si_so_lop;
+                        console.log(`✅ Auto-updated class size for first selected major ${subjectId}|${firstMajor}: ${lookupData.si_so_lop}`);
+                    } else {
+                        console.log(`❌ No lookup data found for ${subjectId}|${firstMajor}`);
+                    }
+                };
+                
+                // Attach listeners for both recomputation and option hiding
+                selects.forEach(s => {
+                    s.addEventListener('change', () => {
+                        recompute();
+                        updateMajorOptions(s);
+                        
+                        // Hide/show rows immediately when major selection changes
+                        // Find the uniqueId for this container
+                        const combinationSection = container.closest('tr');
+                        const subjectRow = combinationSection.previousElementSibling;
+                        const subjectCode = subjectRow?.querySelectorAll('td')[0]?.querySelector('input')?.value;
+                        const timestamp = Date.now();
+                        const randomId = Math.random().toString(36).substr(2, 9);
+                        const uniqueId = `${subjectCode}_${timestamp}_${randomId}`;
+                        
+                        // Find the actual uniqueId from the container's parent
+                        const actualContainer = container.closest('div[id^="majorCombinations_"]');
+                        if (actualContainer) {
+                            const actualUniqueId = actualContainer.id.replace('majorCombinations_', '');
+                            updateMajorRowVisibility(actualUniqueId, currentMajor);
+                        }
+                        
+                        // Force update class size when major selection changes
+                        setTimeout(() => {
+                            const selectsNow = container.querySelectorAll('.major-select');
+                            const classSizeInput = container.querySelector('.combo-class-size');
+                            updateClassSizeFromSelectedMajors(selectsNow, classSizeInput, subjectId);
+                        }, 100);
+                    });
+                });
+                
+                // Init once and trigger updateMajorOptions for each select
+                recompute();
+                
+                // Manually trigger updateMajorOptions to hide already selected values after DOM is ready
+                setTimeout(() => {
+                    const selectsAfterDelay = container.querySelectorAll('.major-select');
+                    console.log('Found selects after timeout:', selectsAfterDelay.length);
+                    
+                    selectsAfterDelay.forEach((select, index) => {
+                        if (select.value && select.value !== '') {
+                            console.log('Triggering update for select', index, 'with value', select.value);
+                            updateMajorOptions(select);
+                        }
+                    });
+                }, 100);
+            } catch (error) {
+                showError('Lỗi khi tải danh sách ngành: ' + error.message);
+            }
+        }
+        
+        // Update major options when one is selected
+        function updateMajorOptions(selectedSelect) {
+            console.log('updateMajorOptions called with value:', selectedSelect.value);
+            const container = selectedSelect.closest('.major-combination-row') || selectedSelect.closest('div');
+            const selects = container.querySelectorAll('.major-select');
+            const selectedValue = selectedSelect.value;
+            
+            console.log('Found selects:', selects.length);
+            
+            // Collect ALL currently selected values from ALL selects IN THIS COMBINATION ROW ONLY
+            const allSelectedValues = new Set();
+            selects.forEach(select => {
+                if (select.value && select.value !== '') {
+                    allSelectedValues.add(select.value);
+                }
+            });
+            
+            console.log('All selected values in this row:', Array.from(allSelectedValues));
+            
+            // Update all selects to hide ALL selected values WITHIN THIS ROW ONLY
+            selects.forEach((select, index) => {
+                console.log('Processing select', index, 'current value:', select.value);
+                const options = select.querySelectorAll('option');
+                options.forEach(option => {
+                    // Hide if this option is selected in any OTHER select IN THE SAME ROW
+                    const isSelectedElsewhere = allSelectedValues.has(option.value) && option.value !== '';
+                    
+                    if (isSelectedElsewhere && option.value !== select.value) {
+                        console.log('Hiding option:', option.value, 'from select', index);
+                        option.style.display = 'none';
+                    } else {
+                        option.style.display = 'block';
+                    }
+                });
+            });
+            
+            // REMOVED: Logic to hide options across different subjects
+            // Each subject should be able to select the same major independently
+        }
+        
+        // Toggle single major mode
+
+        function updateTableHeader() {
+            const heDacThuSelect = document.getElementById('heDacThuSelect');
+            const isHeDacThu = heDacThuSelect.value === 'he_dac_thu';
+            const isChung = heDacThuSelect.value === 'chung';
+            
+            const thead = document.querySelector('#batchTable thead tr');
+            if (!thead) return;
+            
+            if (isHeDacThu) {
+                thead.innerHTML = `
+                    <th>Mã môn</th>
+                    <th>Tên môn</th>
+                    <th>Sĩ số</th>
+                    <th>Sĩ số một lớp</th>
+                    <th>Ngành</th>
+                    <th>Khóa</th>
+                    <th>Hệ đặc thù</th>
+                    <th>Xóa</th>
+                `;
+            } else if (isChung) {
+                thead.innerHTML = `
+                    <th>Mã môn</th>
+                    <th>Tên môn</th>
+                    <th>Sĩ số</th>
+                    <th>Sĩ số một lớp</th>
+                    <th>Khóa</th>
+                    <th>Gộp ngành</th>
+                    <th>Đăng ký chung</th>
+                    <th>Chọn môn khác khóa</th>
+                    <th>Xóa</th>
+                `;
+            } else {
+                thead.innerHTML = `
+                    <th>Mã môn</th>
+                    <th>Tên môn</th>
+                    <th>Sĩ số</th>
+                    <th>Sĩ số một lớp</th>
+                    <th>Khóa</th>
+                    <th>Ngành</th>
+                    <th>Gộp ngành</th>
+                    <th>Đăng ký chung</th>
+                    <th>Chọn môn khác khóa</th>
+                    <th>Xóa</th>
+                `;
+            }
+        }
+
+        function addBatchRow(subject) {
+            const tr = document.createElement('tr');
+            // Compute "Tổng tiết LT" = ly_thuyet + tl_bt + bt_lon
+            const lt = parseInt(subject.ly_thuyet || 0, 10) || 0;
+            const tlbt = parseInt(subject.tl_bt || 0, 10) || 0;
+            const btl = parseInt(subject.bt_lon || 0, 10) || 0;
+            let finalPeriods = lt + tlbt + btl;
+            if (!finalPeriods || finalPeriods <= 0) {
+                finalPeriods = parseInt(subject.ts_tiet || 0, 10) || 0;
+            }
+            
+            // Use individual subject enrollment (not aggregated)
+            const enrollment = parseInt(subject.si_so || 0, 10) || 0;
+            
+            // Get sĩ số/lớp from lookup data if available
+            let finalEnrollment = enrollment;
+            let defaultClassSize = 60;
+            
+            // For common subjects, use totalSiSo if available (grouped by khoa)
+            if (subject.totalSiSo) {
+                finalEnrollment = subject.totalSiSo;
+            } else {
+                finalEnrollment = enrollment;
+            }
+            
+            // Only use lookup data for class size (sĩ số/lớp), not enrollment
+            if (subject.si_so_lop_from_lookup) {
+                defaultClassSize = subject.si_so_lop_from_lookup;
+            } else if (enrollment < 50) {
+                defaultClassSize = enrollment;
+            }
+            
+            // Format Khoa - remove .0 suffix
+            const khoaFormatted = (subject.khoa || '').toString().replace(/\.0$/, '');
+            
+            const heDacThuSelect = document.getElementById('heDacThuSelect');
+            const isHeDacThu = heDacThuSelect.value === 'he_dac_thu';
+            const isChung = heDacThuSelect.value === 'chung';
+            
+            // Format he_dac_thu display
+            const heDacThuDisplay = subject.he_dac_thu ? subject.he_dac_thu : '';
+
+            if (isHeDacThu) {
+                // Special system row format
+                tr.innerHTML = `
+                    <td><input value="${subject.mmh}" readonly/></td>
+                    <td><textarea class=\"cell-text\" readonly>${subject.tmh}</textarea></td>
+                    <td><input type=\"number\" value="${finalEnrollment}\" readonly/></td>
+                    <td><input type=\"number\" placeholder=\"Sĩ số một lớp\" value=\"${defaultClassSize}\"/></td>
+                    <td><input type=\"text\" value="${subject.nganh}\" readonly/></td>
+                    <td><input type=\"text\" class=\"cell-khoa\" placeholder=\"Khóa\" value=\"${khoaFormatted}\" readonly/></td>
+                    <td><span class=\"he-dac-thu-display\">${heDacThuDisplay}</span></td>
+                    <td><button class=\"del\" onclick=\"this.closest('tr').remove()\">X</button></td>
+                `;
+            } else if (isChung) {
+                // Common subjects row format - hide nganh column
+                tr.innerHTML = `
+                    <td><input value="${subject.mmh}" readonly/></td>
+                    <td><textarea class=\"cell-text\" readonly>${subject.tmh}</textarea></td>
+                    <td><input type=\"number\" value="${finalEnrollment}\" readonly/></td>
+                    <td><input type=\"number\" placeholder=\"Sĩ số một lớp\" value=\"${defaultClassSize}\"/></td>
+                    <td><input type=\"text\" class=\"col-khoa\" placeholder=\"Khóa\" value=\"${khoaFormatted}\" readonly/></td>
+                    <td><input type=\"checkbox\" onchange=\"toggleMajorCombination(this)\"/></td>
+                    <td><input type=\"checkbox\" onchange=\"toggleCrossRegistration(this)\"/></td>
+                    <td><select onchange=\"updateCrossRegistrationOptions(this)\" disabled><option value=\"\">-- Chọn môn khác khóa --</option></select></td>
+                    <td><button class=\"del\" onclick=\"this.closest('tr').remove()\">X</button></td>
+                `;
+                // Calculate finalPeriods like regular system
+                const lt = parseInt(subject.ly_thuyet || 0, 10) || 0;
+                const tlbt = parseInt(subject.tl_bt || 0, 10) || 0;
+                const btl = parseInt(subject.bt_lon || 0, 10) || 0;
+                let finalPeriods = lt + tlbt + btl;
+                if (!finalPeriods || finalPeriods <= 0) {
+                    finalPeriods = parseInt(subject.ts_tiet || 0, 10) || 0;
+                }
+                console.log('Setting sotiet for common subject:', subject.mmh, 'finalPeriods:', finalPeriods, 'lt:', lt, 'tlbt:', tlbt, 'btl:', btl);
+                tr.dataset.sotiet = finalPeriods;
+                console.log('After setting, tr.dataset.sotiet:', tr.dataset.sotiet);
+            } else {
+                // Regular system row format
+                tr.innerHTML = `
+                    <td><input value="${subject.mmh}" readonly/></td>
+                    <td><textarea class=\"cell-text\" readonly>${subject.tmh}</textarea></td>
+                    <td><input type=\"number\" value="${finalEnrollment}\" readonly/></td>
+                    <td><input type=\"number\" placeholder=\"Sĩ số một lớp\" value=\"${defaultClassSize}\"/></td>
+                    <td><input type=\"text\" class=\"col-khoa\" placeholder=\"Khóa\" value=\"${khoaFormatted}\" readonly/></td>
+                    <td><input type=\"text\" value=\"${subject.nganh}\" readonly/></td>
+                    <td><input type=\"checkbox\" onchange=\"toggleMajorCombination(this)\"/></td>
+                    <td><input type=\"checkbox\" onchange=\"toggleCrossRegistration(this)\"/></td>
+                    <td><select onchange=\"updateCrossRegistrationOptions(this)\" disabled><option value=\"\">-- Chọn môn khác khóa --</option></select></td>
+                    <td><button class=\"del\" onclick=\"this.closest('tr').remove()\">X</button></td>
+                `;
+            }
+            // Store sotiet data and unique ID for row tracking
+            tr.dataset.sotiet = finalPeriods;
+            tr.dataset.he_dac_thu = subject.he_dac_thu || '';
+            tr.dataset.id = Date.now() + Math.random();
+            document.getElementById('batchBody').appendChild(tr);
+        }
+
+        // Cluster-based TKB generation functions
+        function identifyClusters(allRows, heDacThu) {
+            const clusters = new Map();
+            const majorConnections = new Map(); // Track which majors are connected
+            
+            // Determine system type
+            const heDacThuSelect = document.getElementById('heDacThuSelect');
+            const isHeDacThu = heDacThuSelect.value === 'he_dac_thu';
+            const isChung = heDacThuSelect.value === 'chung';
+            
+            // First pass: collect all subjects and their combinations
+            for (const tr of allRows) {
+                if (tr.style.display === 'none') continue;
+                
+                const isHiddenByCombination = tr.dataset.hiddenByCombination && tr.dataset.hiddenByCombination !== '';
+                if (isHiddenByCombination) continue;
+                
+                const tds = tr.querySelectorAll('td');
+                const expectedColumns = isHeDacThu ? 8 : 9;
+                
+                if (tds.length < expectedColumns) continue;
+                
+                const nganh = isHeDacThu ? 
+                    (tds[4].querySelector('input')?.value || '').trim() : 
+                    isChung ? 
+                        'COMMON' : // Use 'COMMON' as major for common subjects
+                        (tds[5].querySelector('input')?.value || '').trim();
+                
+                const hoc_rieng = isHeDacThu ? 
+                    false : // Special system doesn't have combination checkbox
+                    isChung ? 
+                        tds[5].querySelector('input[type="checkbox"]')?.checked || false : // Common system checkbox at tds[5]
+                        tds[6].querySelector('input[type="checkbox"]')?.checked || false;
+                
+                if (!clusters.has(nganh)) {
+                    clusters.set(nganh, {
+                        majors: [nganh],
+                        nonGroupedSubjects: [],
+                        groupedSubjects: [],
+                        combinations: new Map()
+                    });
+                }
+                
+                const cluster = clusters.get(nganh);
+                
+                if (hoc_rieng) {
+                    // Find combination data
+                    const combinationSection = tr.nextElementSibling;
+                    if (combinationSection && combinationSection.classList.contains('major-combination-row')) {
+                        const container = combinationSection.querySelector(`div[id^="majorCombinations_"]`);
+                        if (container) {
+                            const combinationRows = Array.from(container.querySelectorAll(':scope > div'));
+                            combinationRows.forEach(combo => {
+                                const selects = combo.querySelectorAll('.major-select');
+                                const major1Display = combo.querySelector('.major-1-display');
+                                const nganh1 = major1Display?.value || '';
+                                const nganh2 = selects[0]?.value || '';
+                                const nganh3 = selects[1]?.value || '';
+                                
+                                const selectedMajors = [nganh1, nganh2, nganh3].filter(major => major && major !== '');
+                                
+                                if (selectedMajors.length > 1) {
+                                    // Record this combination
+                                    const combinationKey = selectedMajors.sort().join('-');
+                                    if (!cluster.combinations.has(combinationKey)) {
+                                        cluster.combinations.set(combinationKey, {
+                                            majors: selectedMajors,
+                                            subjects: []
+                                        });
+                                    }
+                                    cluster.combinations.get(combinationKey).subjects.push(tr);
+                                    
+                                    // Connect majors
+                                    selectedMajors.forEach(major => {
+                                        if (!majorConnections.has(major)) {
+                                            majorConnections.set(major, new Set());
+                                        }
+                                        selectedMajors.forEach(otherMajor => {
+                                            if (major !== otherMajor) {
+                                                majorConnections.get(major).add(otherMajor);
+                                            }
+                                        });
+                                    });
+                                }
+                            });
+                        }
+                    }
+                    cluster.groupedSubjects.push(tr);
+                } else {
+                    cluster.nonGroupedSubjects.push(tr);
+                }
+            }
+            
+            // Merge connected clusters
+            const mergedClusters = new Map();
+            const processedMajors = new Set();
+            
+            // First, copy all individual clusters (for non-connected majors)
+            for (const [major, cluster] of clusters) {
+                mergedClusters.set(major, {
+                    majors: [major],
+                    nonGroupedSubjects: [...cluster.nonGroupedSubjects],
+                    groupedSubjects: [...cluster.groupedSubjects],
+                    combinations: new Map(cluster.combinations)
+                });
+            }
+            
+            // Then merge connected clusters (overwrite individual clusters if they're connected)
+            for (const [major, connections] of majorConnections) {
+                if (processedMajors.has(major)) continue;
+                
+                // Find all connected majors using BFS
+                const clusterMajors = new Set([major]);
+                const queue = [major];
+                
+                while (queue.length > 0) {
+                    const currentMajor = queue.shift();
+                    const currentConnections = majorConnections.get(currentMajor) || new Set();
+                    
+                    for (const connectedMajor of currentConnections) {
+                        if (!clusterMajors.has(connectedMajor)) {
+                            clusterMajors.add(connectedMajor);
+                            queue.push(connectedMajor);
+                        }
+                    }
+                }
+                
+                // Create merged cluster
+                const clusterKey = Array.from(clusterMajors).sort().join('-');
+                mergedClusters.set(clusterKey, {
+                    majors: Array.from(clusterMajors).sort(),
+                    nonGroupedSubjects: [],
+                    groupedSubjects: [],
+                    combinations: new Map()
+                });
+                
+                const mergedCluster = mergedClusters.get(clusterKey);
+                
+                // Merge data from individual clusters
+                for (const individualMajor of clusterMajors) {
+                    const individualCluster = clusters.get(individualMajor);
+                    if (individualCluster) {
+                        mergedCluster.nonGroupedSubjects.push(...individualCluster.nonGroupedSubjects);
+                        mergedCluster.groupedSubjects.push(...individualCluster.groupedSubjects);
+                        
+                        // Merge combinations
+                        for (const [comboKey, comboData] of individualCluster.combinations) {
+                            if (!mergedCluster.combinations.has(comboKey)) {
+                                mergedCluster.combinations.set(comboKey, {
+                                    majors: comboData.majors,
+                                    subjects: []
+                                });
+                            }
+                            mergedCluster.combinations.get(comboKey).subjects.push(...comboData.subjects);
+                        }
+                    }
+                    processedMajors.add(individualMajor);
+                    
+                    // Remove individual cluster if it's been merged (except for single-major clusters)
+                    if (clusterMajors.size > 1) {
+                        mergedClusters.delete(individualMajor);
+                    }
+                }
+            }
+            
+            return mergedClusters;
+        }
+        
+        function generateProcessingOrder(clusters, isHeDacThu, isChung) {
+            const processingOrder = [];
+            const processedMajors = new Set(); // Majors that have been processed as individual subjects
+            const processedCombinations = new Set();
+            let lastProcessedMajor = null;
+            
+            // Convert clusters to a flat list for easier processing
+            const allClusters = Array.from(clusters.entries());
+            
+            // Process clusters in order
+            for (const [clusterKey, cluster] of allClusters) {
+                const majors = cluster.majors;
+                
+                // Process each major in the cluster
+                for (let i = 0; i < majors.length; i++) {
+                    const currentMajor = majors[i];
+                    
+                    // Skip if this major was already processed as individual subject
+                    if (processedMajors.has(currentMajor)) continue;
+                    
+                    // 1. Non-grouped subjects of current major
+                    if (cluster.nonGroupedSubjects.length > 0) {
+                        const nonGroupedForMajor = cluster.nonGroupedSubjects.filter(tr => {
+                            if (isChung) {
+                                // For common subjects, include all subjects (no nganh filtering)
+                                return true;
+                            }
+                            const tds = tr.querySelectorAll('td');
+                            const nganh = isHeDacThu ? 
+                                (tds[4].querySelector('input')?.value || '').trim() : 
+                                (tds[5].querySelector('input')?.value || '').trim();
+                            return nganh === currentMajor;
+                        });
+                        
+                        if (nonGroupedForMajor.length > 0) {
+                            processingOrder.push({
+                                cluster: majors,
+                                major: currentMajor,
+                                subjectType: 'nonGrouped',
+                                subjects: nonGroupedForMajor
+                            });
+                            processedMajors.add(currentMajor);
+                            lastProcessedMajor = currentMajor;
+                        }
+                    }
+                    
+                    // 2. Combined subjects involving current major
+                    for (const [comboKey, comboData] of cluster.combinations) {
+                        if (comboData.majors.includes(currentMajor) && 
+                            !processedCombinations.has(comboKey)) {
+                            
+                            processingOrder.push({
+                                cluster: majors,
+                                major: comboData.majors.join('-'),
+                                subjectType: 'combined',
+                                subjects: comboData.subjects
+                            });
+                            
+                            processedCombinations.add(comboKey);
+                            // Don't mark majors as processed here - they might still need individual processing
+                            lastProcessedMajor = comboData.majors[comboData.majors.length - 1];
+                            
+                            // After processing a combination, immediately look for other combinations
+                            // that involve the last processed major
+                            for (const [otherClusterKey, otherCluster] of allClusters) {
+                                for (const [otherComboKey, otherComboData] of otherCluster.combinations) {
+                                    if (otherComboData.majors.includes(lastProcessedMajor) && 
+                                        !processedCombinations.has(otherComboKey)) {
+                                        
+                                        processingOrder.push({
+                                            cluster: otherCluster.majors,
+                                            major: otherComboData.majors.join('-'),
+                                            subjectType: 'combined',
+                                            subjects: otherComboData.subjects
+                                        });
+                                        
+                                        processedCombinations.add(otherComboKey);
+                                        lastProcessedMajor = otherComboData.majors[otherComboData.majors.length - 1];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return processingOrder;
+        }
+
+        async function runBatch() {
+            const items = [];
+            const processedRows = new Set(); // Track processed rows to avoid duplicates
+            
+            // Determine system type
+            const heDacThuSelect = document.getElementById('heDacThuSelect');
+            const heDacThu = heDacThuSelect.value === 'he_dac_thu' ? heDacThuSelect.value : '';
+            const isHeDacThu = heDacThuSelect.value === 'he_dac_thu';
+            const isChung = heDacThuSelect.value === 'chung';
+            
+            // Process regular rows with Cluster-based logic
+            const allRows = document.getElementById('batchBody').querySelectorAll('tr');
+            
+            // Step 1: Identify clusters based on major combinations
+            const clusters = identifyClusters(allRows, heDacThu);
+            console.log('Identified clusters:', clusters);
+            
+            // Step 2: Generate processing order based on clusters
+            const processingOrder = generateProcessingOrder(clusters, isHeDacThu, isChung);
+            console.log('Processing order:', processingOrder);
+            
+            // Step 3: Process subjects in cluster order
+            for (const clusterItem of processingOrder) {
+                const { cluster, major, subjectType, subjects } = clusterItem;
+                console.log(`Processing ${subjectType} subjects for major ${major} in cluster ${cluster.join('-')}`);
+                
+                console.log(`Found ${subjects.length} subjects for ${subjectType} ${major}`);
+                for (const tr of subjects) {
+                    if (processedRows.has(tr)) continue;
+                    if (tr.style.display === 'none') continue;
+                    
+                    console.log('Processing tr element:', tr, 'dataset.sotiet:', tr.dataset.sotiet);
+                
+                    const tds = tr.querySelectorAll('td');
+                    const isHeDacThu = !!heDacThu;
+                    const expectedColumns = isHeDacThu ? 8 : 9;
+                    
+                    if (tds.length < expectedColumns) continue;
+                    
+                    const ma_mon = tds[0].querySelector('input')?.value || '';
+                    const ten_mon_el = tds[1].querySelector('textarea, input');
+                    const ten_mon = ten_mon_el ? ten_mon_el.value : '';
+                    const sotiet = parseInt(tr.dataset.sotiet, 10);
+                    const siso = parseInt(tds[2].querySelector('input')?.value, 10);
+                    
+                    console.log(`Processing subject: ${ma_mon} - ${ten_mon}, siso: ${siso}, sotiet: ${sotiet}, dataset.sotiet: ${tr.dataset.sotiet}`);
+                    
+                    let siso_mot_lop, khoa, nganh, hoc_rieng, crossRegistration, selectedCrossSubject;
+                    
+                    if (isHeDacThu) {
+                        const siso_mot_lop_input = parseInt(tds[3].querySelector('input')?.value, 10);
+                        // Calculate number of classes: ceil(total enrollment / enrollment per class)
+                        siso_mot_lop = Math.ceil(siso / siso_mot_lop_input);
+                        khoa = (tds[5].querySelector('input')?.value || '').trim();
+                        nganh = (tds[4].querySelector('input')?.value || '').trim();
+                        hoc_rieng = false; // Special system doesn't have combination checkbox
+                        crossRegistration = false;
+                        selectedCrossSubject = '';
+                    } else if (isChung) {
+                        // For common subjects, siso_mot_lop is the enrollment per class (not number of classes)
+                        siso_mot_lop = parseInt(tds[3].querySelector('input')?.value, 10);
+                        khoa = (tds[4].querySelector('input')?.value || '').trim();
+                        nganh = ''; // Common subjects don't have nganh
+                        hoc_rieng = tds[5].querySelector('input[type="checkbox"]')?.checked || false;
+                        crossRegistration = tds[6].querySelector('input[type="checkbox"]')?.checked || false;
+                        selectedCrossSubject = tds[7].querySelector('select')?.value || '';
+                    } else {
+                        siso_mot_lop = parseInt(tds[3].querySelector('input')?.value, 10);
+                        
+                        if (siso < 50) {
+                            siso_mot_lop = siso;
+                        }
+                        
+                        khoa = (tds[4].querySelector('input')?.value || '').trim();
+                        nganh = (tds[5].querySelector('input')?.value || '').trim();
+                        hoc_rieng = tds[6].querySelector('input[type="checkbox"]')?.checked || false;
+                        crossRegistration = tds[7].querySelector('input[type="checkbox"]')?.checked || false;
+                        selectedCrossSubject = tds[8].querySelector('select')?.value || '';
+                    }
+                    
+                    const subjectHeDacThu = tr.dataset.he_dac_thu || '';
+                    
+                    let student_year = 'general';
+                    let subject_type = null;
+                    
+                    if (khoa && khoa !== '') {
+                        student_year = khoa.toString().replace(/\.0$/, '');
+                    }
+                    
+                    if (ten_mon.toLowerCase().includes('tiếng anh') || ten_mon.toLowerCase().includes('english')) {
+                        subject_type = 'english';
+                    }
+                    
+                    if (!ma_mon || !ten_mon || !sotiet || !siso) {
+                        showError('Vui lòng điền đầy đủ thông tin cho tất cả các môn học');
+                        return;
+                    }
+                    
+                    // Process based on subject type
+                    if (subjectType === 'combined') {
+                        // Process combined subjects
+                        const combinationSection = tr.nextElementSibling;
+                        if (combinationSection && combinationSection.classList.contains('major-combination-row')) {
+                            const container = combinationSection.querySelector(`div[id^="majorCombinations_"]`);
+                            if (container) {
+                                const combinationRows = Array.from(container.querySelectorAll(':scope > div'));
+                                combinationRows.forEach(combo => {
+                                    const selects = combo.querySelectorAll('.major-select');
+                                    const totalEnrollInput = combo.querySelector('.combo-total-enroll');
+                                    const classSizeInput = combo.querySelector('.combo-class-size');
+                                    const major1Display = combo.querySelector('.major-1-display');
+
+                                    const siso_total_combo = parseInt(totalEnrollInput && totalEnrollInput.value, 10) || 0;
+                                    let siso_mot_lop_combo = parseInt(classSizeInput && classSizeInput.value, 10) || 0;
+                                    
+                                    // Use lookup data for default class size if available
+                                    const subjectId = tr.dataset.subjectId;
+                                    const nganh1 = major1Display?.value || '';
+                                    if (subjectId && nganh1) {
+                                        // Only apply lookup logic for combined majors (gộp ngành)
+                                        const selects = combo.querySelectorAll('.major-select');
+                                        let hasSelectedMajors = false;
+                                        let selectedMajors = [];
+                                        
+                                        selects.forEach(select => {
+                                            if (select.value && select.value !== '') {
+                                                hasSelectedMajors = true;
+                                                selectedMajors.push(select.value);
+                                            }
+                                        });
+                                        
+                                        if (hasSelectedMajors) {
+                                            // Include the current major (Ngành 1) in the combination
+                                            const allMajors = [nganh1, ...selectedMajors].filter(major => major && major !== '');
+                                            
+                                            // Try to find lookup data for combined majors first
+                                            const combinedKey = `${subjectId}|${allMajors.join('-')}`;
+                                            let lookupData = getSiSoData(subjectId, allMajors.join('-'));
+                                            
+                                            if (lookupData && lookupData.si_so_lop) {
+                                                siso_mot_lop_combo = lookupData.si_so_lop;
+                                                if (classSizeInput) {
+                                                    classSizeInput.value = siso_mot_lop_combo;
+                                                }
+                                                console.log(`Using combined major lookup data for ${combinedKey}: ${lookupData.si_so_lop}`);
+                                            } else {
+                                                // Fallback to individual major data
+                                                lookupData = getSiSoData(subjectId, nganh1);
+                                                if (lookupData && lookupData.si_so_lop) {
+                                                    siso_mot_lop_combo = lookupData.si_so_lop;
+                                                    if (classSizeInput) {
+                                                        classSizeInput.value = siso_mot_lop_combo;
+                                                    }
+                                                    console.log(`Using individual major lookup data for ${subjectId}|${nganh1}: ${lookupData.si_so_lop}`);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    if (siso_total_combo < 50) {
+                                        siso_mot_lop_combo = siso_total_combo;
+                                    }
+
+                                    if (siso_mot_lop_combo > 0) {
+                                        const nganh1 = major1Display?.value || '';
+                                        const nganh2 = selects[0]?.value || '';
+                                        const nganh3 = selects[1]?.value || '';
+
+                                        if (nganh1) {
+                                            const solop = Math.ceil(siso_total_combo / siso_mot_lop_combo);
+                                            const selectedMajors = [nganh1, nganh2, nganh3].filter(major => major && major !== '');
+
+                                            items.push({
+                                                ma_mon: ma_mon,
+                                                ten_mon: ten_mon,
+                                                sotiet: sotiet,
+                                                solop: solop,
+                                                siso: siso_mot_lop_combo,
+                                                siso_mot_lop: siso_mot_lop_combo,
+                                                nganh: selectedMajors.join('-'),
+                                                subject_type: subject_type,
+                                                student_year: student_year,
+                                                he_dac_thu: subjectHeDacThu
+                                            });
+
+                                            const majorsToHide = selectedMajors.filter(major => major !== nganh1);
+                                            hideCombinedMajorRows(majorsToHide, ma_mon);
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                    } else {
+                        // Process non-grouped subjects
+                        let solop;
+                        if (isHeDacThu) {
+                            solop = siso_mot_lop; // siso_mot_lop is already number of classes for special system
+                        } else if (isChung) {
+                            solop = Math.ceil(siso / siso_mot_lop); // Calculate number of classes for common subjects
+                        } else {
+                            solop = Math.ceil(siso / siso_mot_lop);
+                        }
+                        
+                        items.push({
+                            ma_mon: ma_mon,
+                            ten_mon: ten_mon,
+                            sotiet: sotiet,
+                            solop: solop,
+                            siso: (isHeDacThu || isChung) ? siso : siso_mot_lop,
+                            siso_mot_lop: siso_mot_lop,
+                            nganh: nganh,
+                            subject_type: subject_type,
+                            student_year: student_year,
+                            he_dac_thu: subjectHeDacThu
+                        });
+                    }
+                    
+                    processedRows.add(tr);
+                }
+            }
+            
+            
+            console.log('Total items created:', items.length);
+            if (items.length === 0) {
+                showError('Không có môn học nào để sinh TKB');
+                return;
+            }
+            
+            try {
+                console.log('Sending items to Spring Boot API:', items);
+                const res = await fetch(`http://localhost:8080/api/tkb/generate-batch`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({items})
+                });
+                const data = await res.json();
+                console.log('Spring Boot API response:', data);
+                
+                if (data.items && data.items.length > 0) {
+                    // Spring Boot returns structure: {items: [{input: ..., rows: [...]}]}
+                    // Extract all rows from all items
+                    const allRows = data.items.flatMap(item => item.rows || []);
+                    console.log('Data items received:', data.items.length);
+                    console.log('Total rows extracted:', allRows.length);
+                    console.log('First row sample:', allRows[0]);
+                    
+                    renderTable(allRows);
+                    
+                    // Store current TKB data for saving
+                    window.currentTKBData = allRows;
+                    
+                    // Store new occupied rooms for this session
+                    const occupiedRooms = data.newOccupiedRooms || data.new_occupied_rooms || [];
+                    console.log('Occupied rooms from API (raw):', occupiedRooms);
+                    console.log('Type:', typeof occupiedRooms, 'IsArray:', Array.isArray(occupiedRooms));
+                    
+                    // Convert ["room|thu|kip", ...] to [["room", "thu", "kip"], ...]
+                    if (Array.isArray(occupiedRooms) && occupiedRooms.length > 0) {
+                        window.currentOccupiedRooms = occupiedRooms.map(item => {
+                            if (typeof item === 'string') {
+                                return item.split('|');
+                            }
+                            return item;
+                        });
+                    } else {
+                        window.currentOccupiedRooms = [];
+                    }
+                    
+                    console.log('✅ Stored currentOccupiedRooms:', window.currentOccupiedRooms);
+                    console.log('✅ Length:', window.currentOccupiedRooms.length);
+                    
+                    // Store last slot index for continuous scheduling (only saved when user clicks "Lưu kết quả")
+                    window.currentLastSlotIdx = data.lastSlotIdx || data.last_slot_idx || -1;
+                    
+                    // Update occupied rooms count
+                    const roomCount = data.occupiedRoomsCount || data.occupied_rooms_count || 0;
+                    if (roomCount !== undefined && roomCount > 0) {
+                        showInfo(`Đã sử dụng ${roomCount} phòng trong lần sinh này`);
+                    }
+                } else {
+                    showError('Không có dữ liệu trả về từ server');
+                }
+            } catch (error) {
+                showError('Lỗi khi sinh TKB: ' + error.message);
+            }
+        }
+
+        function renderTable(rows) {
+            console.log('renderTable called with:', rows);
+            const resultDiv = document.getElementById('result');
+            if (!rows || rows.length === 0) {
+                console.log('No rows data, showing error message');
+                resultDiv.innerHTML = '<div class="error">Không có dữ liệu</div>';
+                return;
+            }
+            console.log('Rendering', rows.length, 'rows');
+
+            const showDetail = document.getElementById('toggleDetail')?.checked || false;
+            const baseHeaders = ['Lớp','Mã môn','Tên môn','Khóa','Ngành','Hệ đặc thù','Thứ','Kíp','Tiết BD','L','Mã phòng'];
+            const detailHeaders = showDetail ? ['AI','AJ','AH','N'] : [];
+            const weekHeaders = Array.from({length:18}, (_,i)=>`Tuần ${i+1}`);
+            const headers = [...baseHeaders, ...detailHeaders, ...weekHeaders];
+
+            let html = '<table class="table"><thead><tr>' + headers.map(h=>`<th>${h}</th>`).join('') + '</tr></thead><tbody>';
+
+            let lastKey = null;
+            let flip = false;
+            for (const r of rows) {
+                console.log('Rendering row:', r);
+                const key = `${r.ma_mon||''}|${r.lop||''}`;
+                if (key !== lastKey) { flip = !flip; lastKey = key; }
+                const rowClass = flip ? 'row-a' : 'row-b';
+                html += `<tr class="${rowClass}">`
+                    + `<td>${r.lop ?? ''}</td>`
+                    + `<td>${r.ma_mon ?? ''}</td>`
+                    + `<td>${r.ten_mon ?? ''}</td>`
+                    + `<td>${r.student_year ?? ''}</td>`
+                    + `<td>${r.nganh ?? ''}</td>`
+                    + `<td>${r.he_dac_thu ?? ''}</td>`
+                    + `<td>${r.thu ?? ''}</td>`
+                    + `<td>${r.kip ?? ''}</td>`
+                    + `<td>${r.tiet_bd ?? ''}</td>`
+                    + `<td>${r.l ?? ''}</td>`
+                    + `<td>${r.phong ?? ''}</td>`;
+                if (showDetail) {
+                    html += `<td>${r.ai ?? ''}</td><td>${r.aj ?? ''}</td><td>${r.ah ?? ''}</td><td>${r.n ?? ''}</td>`;
+                }
+                console.log('Week schedule O_to_AG:', r.O_to_AG);
+                console.log('AH value:', r.AH);
+                const schedule = r.O_to_AG || [];
+                
+                // Ensure we always have 18 weeks
+                for (let i = 0; i < 18; i++) {
+                    const v = schedule[i];
+                    // For week 18 (last week, index 17), show AH value instead of schedule
+                    if (i === 17) {
+                        console.log('Setting week 18 with AH:', r.ah);
+                        html += `<td>${r.ah ?? ''}</td>`;
+                    } else {
+                        html += `<td class="${v === 'x' ? 'x' : ''}">${v ?? ''}</td>`;
+                    }
+                }
+                html += '</tr>';
+            }
+
+            html += '</tbody></table>';
+            // Always show save button at the end of the list
+            html += '<div style="margin-top: 20px; text-align: center;">';
+            html += '<button onclick="saveToResults()" class="btn btn-success">💾 Thêm vào kết quả</button>';
+            html += '</div>';
+            
+            resultDiv.innerHTML = html;
+        }
+
+        // Global variables for saved results
+        window.savedResults = [];
+        window.occupiedRooms = [];
+        
+        // Save current TKB to results
+        async function saveToResults() {
+            console.log('=== saveToResults() called ===');
+            console.log('window.currentTKBData:', window.currentTKBData);
+            console.log('window.currentOccupiedRooms:', window.currentOccupiedRooms);
+            console.log('window.currentLastSlotIdx:', window.currentLastSlotIdx);
+            
+            if (!window.currentTKBData || window.currentTKBData.length === 0) {
+                showError('Không có dữ liệu TKB để lưu');
+                return;
+            }
+
+            const timestamp = new Date().toLocaleString('vi-VN');
+            const resultId = Date.now();
+            
+            // Get department name from current selection
+            const departmentSelect = document.getElementById('departmentSelect');
+            const departmentName = departmentSelect.value || 'Không xác định';
+            
+            // Get system type for display
+            const heDacThuSelect = document.getElementById('heDacThuSelect');
+            const systemType = heDacThuSelect.value === 'he_dac_thu' ? ' (Hệ đặc thù)' : '';
+            
+            const savedResult = {
+                id: resultId,
+                timestamp: timestamp,
+                department: departmentName,
+                data: window.currentTKBData,
+                title: `${departmentName}${systemType} - ${timestamp}`
+            };
+
+            window.savedResults.push(savedResult);
+            updateSavedResultsDisplay();
+            
+            // Call API to confirm - backend already tracks occupied rooms during generation
+            console.log('Calling confirm API...');
+            try {
+                const response = await fetch(`${SPRING_BOOT_API}/rooms/save-results`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                console.log('Response status:', response.status);
+                const result = await response.json();
+                console.log('Response:', result);
+                
+                if (result.message) {
+                    showInfo(`Đã thêm TKB vào kết quả! ${result.message}`);
+                    loadOccupiedRooms();
+                } else {
+                    showInfo('Đã thêm TKB vào kết quả!');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showInfo('Đã thêm TKB vào kết quả! (Lỗi: ' + error.message + ')');
+            }
+        }
+
+        // Update saved results display
+        function updateSavedResultsDisplay() {
+            let savedResultsDiv = document.getElementById('savedResults');
+            
+            // Create the div if it doesn't exist
+            if (!savedResultsDiv) {
+                savedResultsDiv = document.createElement('div');
+                savedResultsDiv.id = 'savedResults';
+                savedResultsDiv.style.cssText = 'margin-top: 20px; padding: 20px; background: #e8f5e8; border-radius: 10px; border: 1px solid #c3e6c3;';
+                document.getElementById('result').parentNode.appendChild(savedResultsDiv);
+            }
+            
+            if (window.savedResults.length === 0) {
+                savedResultsDiv.style.display = 'none';
+                return;
+            }
+
+            savedResultsDiv.style.display = 'block';
+            
+            let html = '<h3 style="color: #2d5a2d; margin-bottom: 15px;">📚 Kết quả TKB đã lưu</h3>';
+            
+            window.savedResults.forEach(result => {
+                html += `
+                    <div style="background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #d4edda; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex: 1;">
+                            <strong>${result.title}</strong><br>
+                            <small>Bộ môn: ${result.department} | Thời gian: ${result.timestamp}</small><br>
+                            <small>Số lớp: ${result.data.length} lớp</small>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="viewResult(${result.id})" class="btn" style="padding: 5px 10px; font-size: 12px; border-radius: 4px; background: #007bff; color: white;">👁️ Xem</button>
+                            <button onclick="exportSingleResult(${result.id})" class="btn" style="padding: 5px 10px; font-size: 12px; border-radius: 4px; background: #28a745; color: white;">📤 Xuất</button>
+                            <button onclick="removeResult(${result.id})" class="btn" style="padding: 5px 10px; font-size: 12px; border-radius: 4px; background: #dc3545; color: white;">🗑️ Xóa</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '<div style="margin-top: 15px;">';
+            html += '<button onclick="exportAllResults()" class="btn" style="padding: 10px 20px; background: #007bff; color: white; border-radius: 4px; margin-right: 10px;">📤 Xuất tất cả ra Excel</button>';
+            html += '<button onclick="clearAllResults()" class="btn" style="padding: 10px 20px; background: #dc3545; color: white; border-radius: 4px;">🗑️ Xóa tất cả</button>';
+            html += '</div>';
+            
+            savedResultsDiv.innerHTML = html;
+        }
+
+        // View a specific result
+        function viewResult(resultId) {
+            const result = window.savedResults.find(r => r.id === resultId);
+            if (!result) return;
+            
+            window.currentTKBData = result.data;
+            renderTable(result.data);
+            showInfo('Đã tải lại TKB từ kết quả đã lưu');
+        }
+
+        // Export single result
+        function exportSingleResult(resultId) {
+            const result = window.savedResults.find(r => r.id === resultId);
+            if (!result) return;
+            
+            exportToExcel([result.data], `${result.department}_${result.timestamp.replace(/[:\s]/g, '_')}`);
+        }
+
+        // Remove a result
+        function removeResult(resultId) {
+            if (confirm('Bạn có chắc muốn xóa kết quả này?')) {
+                window.savedResults = window.savedResults.filter(r => r.id !== resultId);
+                updateSavedResultsDisplay();
+                showInfo('Đã xóa kết quả');
+            }
+        }
+
+        // Export all results to Excel
+        function exportAllResults() {
+            if (window.savedResults.length === 0) {
+                showError('Không có kết quả nào để xuất');
+                return;
+            }
+            
+            const allData = window.savedResults.flatMap(result => result.data);
+            const timestamp = new Date().toLocaleString('vi-VN').replace(/[:\s]/g, '_');
+            exportToExcel([allData], `TKB_TongHop_${timestamp}`);
+        }
+
+        // Clear all results
+        function clearAllResults() {
+            if (confirm('Bạn có chắc muốn xóa tất cả kết quả đã lưu?')) {
+                window.savedResults = [];
+                updateSavedResultsDisplay();
+                showInfo('Đã xóa tất cả kết quả');
+            }
+        }
+
+        // Load occupied rooms from server
+        async function loadOccupiedRooms() {
+            try {
+                const response = await fetch(`${SPRING_BOOT_API}/rooms/occupied-info`);
+                const data = await response.json();
+                // Convert Spring Boot format to expected format
+                window.occupiedRooms = data.total || 0;
+                updateOccupiedRoomsDisplay();
+            } catch (error) {
+                console.error('Error loading occupied rooms:', error);
+            }
+        }
+
+        // Update occupied rooms display
+        function updateOccupiedRoomsDisplay() {
+            let occupiedDiv = document.getElementById('occupiedRooms');
+            
+            if (!occupiedDiv) {
+                occupiedDiv = document.createElement('div');
+                occupiedDiv.id = 'occupiedRooms';
+                occupiedDiv.style.cssText = 'margin-top: 20px; padding: 20px; background: #fff3cd; border-radius: 10px; border: 1px solid #ffeaa7;';
+                document.getElementById('result').parentNode.appendChild(occupiedDiv);
+            }
+            
+            const occupiedCount = window.occupiedRooms || 0;
+            
+            if (occupiedCount === 0) {
+                occupiedDiv.style.display = 'none';
+                return;
+            }
+
+            occupiedDiv.style.display = 'block';
+            
+            let html = '<h3 style="color: #856404; margin-bottom: 15px;">🏢 Phòng đã sử dụng</h3>';
+            html += `<p style="margin-bottom: 15px;">Tổng cộng: <strong>${occupiedCount}</strong> phòng đã được sử dụng</p>`;
+            
+            html += '<div style="margin-top: 15px;">';
+            html += '<button onclick="resetOccupiedRooms()" class="btn" style="padding: 8px 16px; background: #dc3545; color: white; border-radius: 4px;">🔄 Reset phòng đã sử dụng</button>';
+            html += '<button onclick="loadOccupiedRooms()" class="btn" style="padding: 8px 16px; background: #6c757d; color: white; border-radius: 4px; margin-left: 10px;">🔄 Làm mới</button>';
+            html += '</div>';
+            
+            occupiedDiv.innerHTML = html;
+        }
+
+        // Reset occupied rooms
+        async function resetOccupiedRooms() {
+            if (confirm('Bạn có chắc muốn reset tất cả phòng đã sử dụng? Điều này sẽ cho phép sử dụng lại tất cả phòng.')) {
+                try {
+                    const response = await fetch(`${SPRING_BOOT_API}/rooms/reset`, {
+                        method: 'POST'
+                    });
+                    const data = await response.json();
+                    showInfo(data.message || 'Đã reset phòng đã sử dụng');
+                    loadOccupiedRooms();
+                } catch (error) {
+                    showError('Lỗi khi reset phòng: ' + error.message);
+                }
+            }
+        }
+
+        // Export to Excel function
+        async function exportToExcel(data, filename) {
+            try {
+                const response = await fetch(`${API_BASE}/export/tkb-excel`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tkb_data: data })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+
+                // Download the Excel file
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${filename}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+                
+                showInfo('Đã xuất file Excel thành công!');
+            } catch (error) {
+                showError('Lỗi khi xuất Excel: ' + error.message);
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('itemModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>
