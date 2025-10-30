@@ -152,7 +152,8 @@ public class SubjectController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Upload thành công")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "File không hợp lệ hoặc dữ liệu lỗi")
     @PostMapping("/upload-excel")
-    public ResponseEntity<ApiResponse<List<SubjectResponse>>> uploadExcelSubjects(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<ApiResponse<List<SubjectResponse>>> uploadExcelSubjects(@RequestParam("file") MultipartFile file,
+                                                                                  @RequestParam("semester") String semester) {
         try {
             // Kiểm tra file
             if (file.isEmpty()) {
@@ -166,7 +167,7 @@ public class SubjectController {
             }
             
             // Đọc dữ liệu từ Excel
-            List<SubjectRequest> subjectRequests = excelReaderService.readSubjectsFromExcel(file);
+            List<SubjectRequest> subjectRequests = excelReaderService.readSubjectsFromExcel(file, semester);
             
             if (subjectRequests.isEmpty()) {
                 ApiResponse<List<SubjectResponse>> response = ApiResponse.badRequest("File Excel không có dữ liệu hợp lệ");

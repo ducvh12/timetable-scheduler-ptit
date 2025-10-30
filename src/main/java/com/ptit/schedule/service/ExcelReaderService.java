@@ -10,7 +10,7 @@ public interface ExcelReaderService {
     /**
      * Đọc file Excel và trả về danh sách SubjectRequest
      */
-    List<SubjectRequest> readSubjectsFromExcel(MultipartFile file);
+    List<SubjectRequest> readSubjectsFromExcel(MultipartFile file, String semester);
     
     /**
      * Validate dữ liệu Excel

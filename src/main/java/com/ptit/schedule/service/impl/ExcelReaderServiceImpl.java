@@ -16,9 +16,27 @@ import java.util.List;
 @Slf4j
 @Service
 public class ExcelReaderServiceImpl implements ExcelReaderService {
+    // Column indices (0-based)
+    private static final int COL_SUBJECT_CODE = 0; // A
+    private static final int COL_CLASS_YEAR = 1;   // B
+    private static final int COL_MAJOR_ID = 2;     // C
+    private static final int COL_PROGRAM_TYPE = 4; // D
+    private static final int COL_NUMBER_OF_STUDENTS = 6; // E
+    private static final int COL_NUMBER_OF_CLASSES = 7;  // F
+    private static final int COL_SUBJECT_NAME = 9; // H
+    private static final int COL_CREDITS = 10;     // I/J
+    private static final int COL_THEORY_HOURS = 12; // K
+    private static final int COL_EXERCISE_HOURS = 13; // L
+    private static final int COL_PROJECT_HOURS = 14; // M
+    private static final int COL_LAB_HOURS = 15;   // N
+    private static final int COL_SELF_STUDY_HOURS = 16; // O
+    private static final int COL_FACULTY_ID = 18;  // S? (as used before)
+    private static final int COL_DEPARTMENT = 19;  // T? (as used before)
+    private static final int COL_EXAM_FORMAT = 22; // V? (as used before)
 
+    
     @Override
-    public List<SubjectRequest> readSubjectsFromExcel(MultipartFile file) {
+    public List<SubjectRequest> readSubjectsFromExcel(MultipartFile file, String semester) {
         List<SubjectRequest> subjects = new ArrayList<>();
 
         try (InputStream is = file.getInputStream();
@@ -33,7 +51,7 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
                     continue;
                 }
 //                System.out.println(row);
-                SubjectRequest subject = createSubjectFromRow(row, formatter);
+                SubjectRequest subject = createSubjectFromRow(row, formatter, semester);
                 if (!subject.getSubjectCode().isBlank() && subject != null) subjects.add(subject);
             }
 
@@ -53,27 +71,28 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
         }
     }
 
-    private SubjectRequest createSubjectFromRow(Row row, DataFormatter formatter) {
+    private SubjectRequest createSubjectFromRow(Row row, DataFormatter formatter, String semester) {
         try {
             String tmp = formatter.formatCellValue(row.getCell(4));
 
             SubjectRequest subject = SubjectRequest.builder()
-                    .subjectCode(formatter.formatCellValue(row.getCell(0)))   // A
-                    .classYear(formatter.formatCellValue(row.getCell(1)))         // B
-                    .majorId(formatter.formatCellValue(row.getCell(2)))        // C
-                    .programType(formatter.formatCellValue(row.getCell(4))) // D
-                    .numberOfStudents(parseIntSafe(formatter.formatCellValue(row.getCell(6)))) // E
-                    .numberOfClasses(parseIntSafe(formatter.formatCellValue(row.getCell(7)))) // F
-                    .subjectName(formatter.formatCellValue(row.getCell(9)))  // H
-                    .credits(parseIntSafe(formatter.formatCellValue(row.getCell(10))))          // I// J
-                    .theoryHours(parseIntSafe(formatter.formatCellValue(row.getCell(12))))     // K
-                    .exerciseHours(parseIntSafe(formatter.formatCellValue(row.getCell(13))))   // L
-                    .projectHours(parseIntSafe(formatter.formatCellValue(row.getCell(14))))    // M
-                    .labHours(parseIntSafe(formatter.formatCellValue(row.getCell(15))))        // N
-                    .selfStudyHours(parseIntSafe(formatter.formatCellValue(row.getCell(16))))  // O
-                    .facultyId(formatter.formatCellValue(row.getCell(18)))
-                    .department(formatter.formatCellValue(row.getCell(19)))                // P// R
-                    .examFormat(formatter.formatCellValue(row.getCell(21)))                    // S
+                    .subjectCode(formatter.formatCellValue(row.getCell(COL_SUBJECT_CODE)))   // A
+                    .classYear(formatter.formatCellValue(row.getCell(COL_CLASS_YEAR)))         // B
+                    .majorId(formatter.formatCellValue(row.getCell(COL_MAJOR_ID)))        // C
+                    .programType(formatter.formatCellValue(row.getCell(COL_PROGRAM_TYPE))) // D
+                    .numberOfStudents(parseIntSafe(formatter.formatCellValue(row.getCell(COL_NUMBER_OF_STUDENTS)))) // E
+                    .numberOfClasses(parseIntSafe(formatter.formatCellValue(row.getCell(COL_NUMBER_OF_CLASSES)))) // F
+                    .subjectName(formatter.formatCellValue(row.getCell(COL_SUBJECT_NAME)))  // H
+                    .credits(parseIntSafe(formatter.formatCellValue(row.getCell(COL_CREDITS))))          // I// J
+                    .theoryHours(parseIntSafe(formatter.formatCellValue(row.getCell(COL_THEORY_HOURS))))     // K
+                    .exerciseHours(parseIntSafe(formatter.formatCellValue(row.getCell(COL_EXERCISE_HOURS))))   // L
+                    .projectHours(parseIntSafe(formatter.formatCellValue(row.getCell(COL_PROJECT_HOURS))))    // M
+                    .labHours(parseIntSafe(formatter.formatCellValue(row.getCell(COL_LAB_HOURS))))        // N
+                    .selfStudyHours(parseIntSafe(formatter.formatCellValue(row.getCell(COL_SELF_STUDY_HOURS))))  // O
+                    .facultyId(formatter.formatCellValue(row.getCell(COL_FACULTY_ID)))
+                    .department(formatter.formatCellValue(row.getCell(COL_DEPARTMENT)))                // P// R
+                    .examFormat(formatter.formatCellValue(row.getCell(COL_EXAM_FORMAT)))
+                    .semester(semester)// S
                     .build();
 
             if(tmp != null && !tmp.isBlank()){

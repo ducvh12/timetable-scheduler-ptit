@@ -83,4 +83,7 @@ public class SubjectRequest {
 
     @NotNull(message = "Number of students is required")
     private Integer numberOfStudents;
+
+    @NotNull(message = "Semester is required")
+    private String semester;
 }
