@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Data
 @Builder
@@ -25,9 +26,28 @@ public class ConflictResult {
         private String room;
         private ScheduleEntry.TimeSlot timeSlot;  // Đối tượng TimeSlot đầy đủ
         private List<ScheduleEntry> conflictingSchedules;
+        private List<String> conflictWeeks; // Danh sách các tuần bị xung đột
         
         public String getConflictDescription() {
+            if (conflictWeeks != null && !conflictWeeks.isEmpty()) {
+                String weeksStr = String.join(", ", conflictWeeks);
+                return String.format("Phòng %s bị trùng vào %s (%s) - Kíp %s - Tiết %s (%s tiết) tại các tuần: %s", 
+                    room, 
+                    timeSlot.getDayOfWeek(),
+                    timeSlot.getDayOfWeek(),
+                    timeSlot.getShift(), 
+                    timeSlot.getStartPeriod(), 
+                    timeSlot.getNumberOfPeriods(),
+                    weeksStr);
+            }
             return String.format("Phòng %s bị trùng vào %s", room, timeSlot.getDisplayInfo());
+        }
+        
+        public String getConflictKey() {
+            // Key để group conflicts: room-dayOfWeek-shift-startPeriod-numberOfPeriods
+            return String.format("%s-%s-%s-%s-%s", 
+                room, timeSlot.getDayOfWeek(), timeSlot.getShift(), 
+                timeSlot.getStartPeriod(), timeSlot.getNumberOfPeriods());
         }
     }
     
@@ -40,10 +60,29 @@ public class ConflictResult {
         private String teacherName;
         private ScheduleEntry.TimeSlot timeSlot;  // Đối tượng TimeSlot đầy đủ
         private List<ScheduleEntry> conflictingSchedules;
+        private List<String> conflictWeeks; // Danh sách các tuần bị xung đột
         
         public String getConflictDescription() {
+            if (conflictWeeks != null && !conflictWeeks.isEmpty()) {
+                String weeksStr = String.join(", ", conflictWeeks);
+                return String.format("Giảng viên %s (%s) bị trùng lịch vào %s (%s) - Kíp %s - Tiết %s (%s tiết) tại các tuần: %s", 
+                    teacherName, teacherId,
+                    timeSlot.getDayOfWeek(),
+                    timeSlot.getDayOfWeek(),
+                    timeSlot.getShift(), 
+                    timeSlot.getStartPeriod(), 
+                    timeSlot.getNumberOfPeriods(),
+                    weeksStr);
+            }
             return String.format("Giảng viên %s (%s) bị trùng lịch vào %s", 
                     teacherName, teacherId, timeSlot.getDisplayInfo());
+        }
+        
+        public String getConflictKey() {
+            // Key để group conflicts: teacherId-dayOfWeek-shift-startPeriod-numberOfPeriods
+            return String.format("%s-%s-%s-%s-%s", 
+                teacherId, timeSlot.getDayOfWeek(), timeSlot.getShift(), 
+                timeSlot.getStartPeriod(), timeSlot.getNumberOfPeriods());
         }
     }
     

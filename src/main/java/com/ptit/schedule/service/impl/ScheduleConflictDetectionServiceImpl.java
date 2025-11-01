@@ -29,17 +29,21 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
         List<ConflictResult.RoomConflict> roomConflicts = detectRoomConflicts(scheduleEntries);
         List<ConflictResult.TeacherConflict> teacherConflicts = detectTeacherConflicts(scheduleEntries);
 
+        // Group conflicts by pattern (same time, same room/teacher but different weeks)
+        List<ConflictResult.RoomConflict> groupedRoomConflicts = groupRoomConflictsByPattern(roomConflicts);
+        List<ConflictResult.TeacherConflict> groupedTeacherConflicts = groupTeacherConflictsByPattern(teacherConflicts);
+
         return ConflictResult.builder()
-                .roomConflicts(roomConflicts)
-                .teacherConflicts(teacherConflicts)
-                .totalConflicts(roomConflicts.size() + teacherConflicts.size())
+                .roomConflicts(groupedRoomConflicts)
+                .teacherConflicts(groupedTeacherConflicts)
+                .totalConflicts(groupedRoomConflicts.size() + groupedTeacherConflicts.size())
                 .build();
     }
 
     @Override
     public List<ConflictResult.RoomConflict> detectRoomConflicts(List<ScheduleEntry> scheduleEntries) {
-        log.debug("=== detectRoomConflicts START ===");
-        log.debug("Total schedule entries: {}", scheduleEntries.size());
+//        log.debug("=== detectRoomConflicts START ===");
+//        log.debug("Total schedule entries: {}", scheduleEntries.size());
         
         List<ConflictResult.RoomConflict> conflicts = new ArrayList<>();
 
@@ -51,7 +55,7 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
             
             // Bỏ qua các lớp học online (không cần kiểm tra xung đột phòng học)
             if (isOnlineClass(entry)) {
-                log.debug("Skipping online class: {}", entry.getSubjectName());
+//                log.debug("Skipping online class: {}", entry.getSubjectName());
                 continue;
             }
 
@@ -59,8 +63,8 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
                 String room = entry.getRoom();
                 String timeKey = timeSlot.getSlotKey();
                 
-                log.debug("Processing: Subject={}, Room={}, SlotKey={}, DayOfWeek={}", 
-                    entry.getSubjectName(), room, timeKey, timeSlot.getDayOfWeek());
+//                log.debug("Processing: Subject={}, Room={}, SlotKey={}, DayOfWeek={}",
+//                    entry.getSubjectName(), room, timeKey, timeSlot.getDayOfWeek());
 
                 roomTimeMap
                         .computeIfAbsent(room, k -> new HashMap<>())
@@ -69,34 +73,34 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
             }
         }
 
-        log.debug("RoomTimeMap created with {} rooms", roomTimeMap.size());
+//        log.debug("RoomTimeMap created with {} rooms", roomTimeMap.size());
 
         // Find conflicts (same room, same time, different subjects)
         for (Map.Entry<String, Map<String, List<ScheduleEntryWithTimeSlot>>> roomEntry : roomTimeMap.entrySet()) {
             String room = roomEntry.getKey();
             
-            log.debug("Checking room: {} with {} time slots", room, roomEntry.getValue().size());
+//            log.debug("Checking room: {} with {} time slots", room, roomEntry.getValue().size());
             
             for (Map.Entry<String, List<ScheduleEntryWithTimeSlot>> timeEntry : roomEntry.getValue().entrySet()) {
                 String timeSlotKey = timeEntry.getKey();
                 List<ScheduleEntryWithTimeSlot> entriesAtTime = timeEntry.getValue();
 
-                log.debug("Time slot: {}, entries count: {}", timeSlotKey, entriesAtTime.size());
+//                log.debug("Time slot: {}, entries count: {}", timeSlotKey, entriesAtTime.size());
 
                 if (entriesAtTime.size() > 1) {
-                    log.debug("=== POTENTIAL ROOM CONFLICT ===");
-                    log.debug("Room: {}, TimeSlotKey: {}", room, timeSlotKey);
+//                    log.debug("=== POTENTIAL ROOM CONFLICT ===");
+//                    log.debug("Room: {}, TimeSlotKey: {}", room, timeSlotKey);
                     
                     for (int i = 0; i < entriesAtTime.size(); i++) {
                         ScheduleEntryWithTimeSlot entry = entriesAtTime.get(i);
-                        log.debug("Entry {}: Subject={}, Teacher={}, DayOfWeek={}", 
-                            i, entry.entry.getSubjectName(), entry.entry.getTeacherName(), entry.timeSlot.getDayOfWeek());
+//                        log.debug("Entry {}: Subject={}, Teacher={}, DayOfWeek={}",
+//                            i, entry.entry.getSubjectName(), entry.entry.getTeacherName(), entry.timeSlot.getDayOfWeek());
                     }
                     
                     // Remove duplicates (same subject, same teacher)
                     List<ScheduleEntryWithTimeSlot> uniqueEntries = removeDuplicateEntriesWithTimeSlot(entriesAtTime);
                     
-                    log.debug("After removing duplicates: {} entries", uniqueEntries.size());
+//                    log.debug("After removing duplicates: {} entries", uniqueEntries.size());
                     
                     if (uniqueEntries.size() > 1) {
                         // Tạo TimeSlot đại diện từ tất cả conflicts thay vì chỉ lấy của entry đầu tiên
@@ -106,9 +110,9 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
                                 .map(ewt -> ewt.entry)
                                 .collect(Collectors.toList());
                         
-                        log.debug("FINAL CONFLICT - Room: {}, TimeSlot: {}, Entries: {}", 
-                                room, representativeTimeSlot.getDisplayInfo(), 
-                                conflictingSchedules.stream().map(s -> s.getSubjectCode()).collect(Collectors.toList()));
+//                        log.debug("FINAL CONFLICT - Room: {}, TimeSlot: {}, Entries: {}",
+//                                room, representativeTimeSlot.getDisplayInfo(),
+//                                conflictingSchedules.stream().map(s -> s.getSubjectCode()).collect(Collectors.toList()));
                         
                         ConflictResult.RoomConflict conflict = ConflictResult.RoomConflict.builder()
                                 .room(room)
@@ -121,8 +125,8 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
             }
         }
 
-        log.debug("=== detectRoomConflicts END ===");
-        log.debug("Total conflicts found: {}", conflicts.size());
+//        log.debug("=== detectRoomConflicts END ===");
+//        log.debug("Total conflicts found: {}", conflicts.size());
         return conflicts;
     }
 
@@ -232,8 +236,114 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
         if (entry.getRoom() == null) return false;
         
         String room = entry.getRoom().toLowerCase().trim();
-        
+        String building = entry.getBuilding().toLowerCase().trim();
         // Check if room/building contains "online" keyword
-        return room.contains("online") || room.contains("trực tuyến") || room.contains("zoom") || room.contains("meet");
+        return room.contains("online") || room.contains("trực tuyến") || room.contains("zoom") || room.contains("meet")
+                || room.contains("lms") || building.contains("lms");
+    }
+
+    /**
+     * Group room conflicts by pattern (same room, same time but different weeks)
+     */
+    private List<ConflictResult.RoomConflict> groupRoomConflictsByPattern(List<ConflictResult.RoomConflict> conflicts) {
+        Map<String, List<ConflictResult.RoomConflict>> groupedMap = new HashMap<>();
+        
+        for (ConflictResult.RoomConflict conflict : conflicts) {
+            String key = conflict.getConflictKey();
+            groupedMap.computeIfAbsent(key, k -> new ArrayList<>()).add(conflict);
+        }
+        
+        List<ConflictResult.RoomConflict> result = new ArrayList<>();
+        for (List<ConflictResult.RoomConflict> group : groupedMap.values()) {
+            if (group.size() == 1) {
+                // Single conflict, no grouping needed
+                result.add(group.get(0));
+            } else {
+                // Multiple conflicts with same pattern, group them
+                ConflictResult.RoomConflict representative = group.get(0);
+                Set<String> allWeeks = new LinkedHashSet<>();
+                Set<ScheduleEntry> allSchedules = new LinkedHashSet<>();
+                
+                for (ConflictResult.RoomConflict conflict : group) {
+                    // Extract week from timeSlot.date (e.g., "Tuần 1" -> "1")
+                    String week = extractWeekNumber(conflict.getTimeSlot().getDate());
+                    if (week != null) {
+                        allWeeks.add(week);
+                    }
+                    allSchedules.addAll(conflict.getConflictingSchedules());
+                }
+                
+                ConflictResult.RoomConflict groupedConflict = ConflictResult.RoomConflict.builder()
+                        .room(representative.getRoom())
+                        .timeSlot(representative.getTimeSlot())
+                        .conflictingSchedules(new ArrayList<>(allSchedules))
+                        .conflictWeeks(new ArrayList<>(allWeeks))
+                        .build();
+                        
+                result.add(groupedConflict);
+            }
+        }
+        
+        return result;
+    }
+
+    /**
+     * Group teacher conflicts by pattern (same teacher, same time but different weeks)
+     */
+    private List<ConflictResult.TeacherConflict> groupTeacherConflictsByPattern(List<ConflictResult.TeacherConflict> conflicts) {
+        Map<String, List<ConflictResult.TeacherConflict>> groupedMap = new HashMap<>();
+        
+        for (ConflictResult.TeacherConflict conflict : conflicts) {
+            String key = conflict.getConflictKey();
+            groupedMap.computeIfAbsent(key, k -> new ArrayList<>()).add(conflict);
+        }
+        
+        List<ConflictResult.TeacherConflict> result = new ArrayList<>();
+        for (List<ConflictResult.TeacherConflict> group : groupedMap.values()) {
+            if (group.size() == 1) {
+                // Single conflict, no grouping needed
+                result.add(group.get(0));
+            } else {
+                // Multiple conflicts with same pattern, group them
+                ConflictResult.TeacherConflict representative = group.get(0);
+                Set<String> allWeeks = new LinkedHashSet<>();
+                Set<ScheduleEntry> allSchedules = new LinkedHashSet<>();
+                
+                for (ConflictResult.TeacherConflict conflict : group) {
+                    // Extract week from timeSlot.date (e.g., "Tuần 1" -> "1")
+                    String week = extractWeekNumber(conflict.getTimeSlot().getDate());
+                    if (week != null) {
+                        allWeeks.add(week);
+                    }
+                    allSchedules.addAll(conflict.getConflictingSchedules());
+                }
+                
+                ConflictResult.TeacherConflict groupedConflict = ConflictResult.TeacherConflict.builder()
+                        .teacherId(representative.getTeacherId())
+                        .teacherName(representative.getTeacherName())
+                        .timeSlot(representative.getTimeSlot())
+                        .conflictingSchedules(new ArrayList<>(allSchedules))
+                        .conflictWeeks(new ArrayList<>(allWeeks))
+                        .build();
+                        
+                result.add(groupedConflict);
+            }
+        }
+        
+        return result;
+    }
+
+    /**
+     * Extract week number from date string (e.g., "Tuần 1" -> "1")
+     */
+    private String extractWeekNumber(String date) {
+        if (date == null) return null;
+        
+        // Pattern: "Tuần X" where X is the week number
+        if (date.startsWith("Tuần ")) {
+            return date.substring(5).trim();
+        }
+        
+        return date;
     }
 }

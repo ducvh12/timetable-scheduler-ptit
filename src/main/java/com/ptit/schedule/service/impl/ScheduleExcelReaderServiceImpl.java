@@ -80,14 +80,14 @@ public class ScheduleExcelReaderServiceImpl implements ScheduleExcelReaderServic
 
                 ScheduleEntry entry = createScheduleEntryFromRow(row, formatter);
                 if (entry != null && isValidEntry(entry)) {
-                    log.debug("Successfully parsed entry: {}", entry.getSubjectCode());
+//                    log.debug("Successfully parsed entry: {}", entry.getSubjectCode());
                     scheduleEntries.add(entry);
                 } else if (entry != null) {
                     log.warn("Invalid entry at row {}: {}", i, entry.getSubjectCode());
                 }
             }
 
-            log.info("Successfully parsed {} schedule entries", scheduleEntries.size());
+//            log.info("Successfully parsed {} schedule entries", scheduleEntries.size());
 
         } catch (IOException e) {
             log.error("Error reading schedule Excel file", e);
@@ -137,7 +137,7 @@ public class ScheduleExcelReaderServiceImpl implements ScheduleExcelReaderServic
             String building = getCellValue(row, COL_BUILDING, formatter);
             String teacherId = getCellValue(row, COL_TEACHER_ID, formatter);
             String teacherName = getCellValue(row, COL_TEACHER_NAME, formatter);
-            if(building.equals("Online")) return  null;
+            if(building.equals("Online") || building.equals("LMS") || room.equals("LMS")) return  null;
             
             int studentCount = parseIntSafe(getCellValue(row, COL_STUDENT_COUNT, formatter));
 
@@ -159,8 +159,9 @@ public class ScheduleExcelReaderServiceImpl implements ScheduleExcelReaderServic
                     .teacherName(teacherName)
                     .studentCount(studentCount)
                     .timeSlots(timeSlots)
+                    .building(building)
                     .build();
-            System.out.println("Parsed entry: " + se);
+//            System.out.println("Parsed entry: " + se);
             return se;
 
         } catch (Exception e) {

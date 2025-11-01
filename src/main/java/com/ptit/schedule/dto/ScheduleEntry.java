@@ -18,6 +18,7 @@ public class ScheduleEntry {
     private String teacherId;        // Mã giảng viên
     private String teacherName;      // Tên giảng viên
     private String room;             // Phòng học
+    private String building;
     private String classGroup;       // Nhóm lớp
     private int studentCount;        // Số sinh viên
     

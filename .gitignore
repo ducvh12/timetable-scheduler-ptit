@@ -38,3 +38,4 @@ build/
 .gitattributes
 *.patch
 .github
+src/main/resources/application.yml
