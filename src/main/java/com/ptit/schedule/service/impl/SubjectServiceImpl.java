@@ -85,8 +85,20 @@ public class SubjectServiceImpl implements SubjectService {
         // Lấy danh sách môn theo năm học (lọc chính quy, loại môn chung)
         List<SubjectMajorDTO> subjects = subjectRepository
                 .findSubjectsWithMajorInfoByProgramType(classYear, programType);
+        if(programType.equals("Đặc thù")){
+            List<SubjectMajorDTO> appendSubjects = subjectRepository
+                    .findSubjectsWithMajorInfoByProgramType(classYear, "CLC");
+            subjects.addAll(appendSubjects);
+        }
+        for(SubjectMajorDTO subjectMajorDTO : subjects) {
+            System.out.println(subjectMajorDTO);
+        }
+        // Kiểm tra nếu là năm cuối (khóa 2022) thì trả về separate majors
+        if (isLastYear(classYear)) {
+            return separateMajorsByClassYear(subjects);
+        }
 
-        // Gọi hàm grouping logic
+        // Gọi hàm grouping logic bình thường cho các năm khác
         return groupMajorsBySharedSubjects(subjects);
     }
 
@@ -215,6 +227,33 @@ public class SubjectServiceImpl implements SubjectService {
         subjectRepository.deleteById(id);
     }
 
+
+    /**
+     * Kiểm tra xem có phải năm cuối không (khóa 2022)
+     */
+    private boolean isLastYear(String classYear) {
+        // Logic kiểm tra năm cuối - có thể adjust theo business rule
+        return "2022".equals(classYear);
+    }
+
+    /**
+     * Trả về các major riêng biệt cho năm cuối, không group lại
+     */
+    private List<Set<String>> separateMajorsByClassYear(List<SubjectMajorDTO> subjects) {
+        // Lấy tất cả major codes unique
+        Set<String> allMajors = subjects.stream()
+                .map(SubjectMajorDTO::getMajorCode)
+                .collect(Collectors.toSet());
+
+        // Trả về mỗi major như một group riêng biệt
+        return allMajors.stream()
+                .map(major -> {
+                    Set<String> singleMajorGroup = new HashSet<>();
+                    singleMajorGroup.add(major);
+                    return singleMajorGroup;
+                })
+                .collect(Collectors.toList());
+    }
 
     public static List<Set<String>> groupMajorsBySharedSubjects(List<SubjectMajorDTO> list) {
         // subjectCode -> list majorCode học môn đó

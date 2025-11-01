@@ -240,6 +240,8 @@ public class SubjectController {
             @RequestParam String classYear,
             @RequestParam String programType) {
         try {
+            System.out.println("classYear: " + classYear);
+            System.out.println("programType: " + programType);
             List<Set<String>> groupedMajors = subjectService.groupMajorsBySharedSubjects(classYear, programType);
 
             if (groupedMajors == null || groupedMajors.isEmpty()) {
