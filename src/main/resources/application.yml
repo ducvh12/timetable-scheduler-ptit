@@ -17,6 +17,12 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
+  
+  # Tắt auto-init data.sql để tránh duplicate data
+  sql:
+    init:
+      mode: never # Không tự động chạy data.sql
+      
   servlet:
     multipart:
       max-file-size: 10MB

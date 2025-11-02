@@ -5,6 +5,24 @@
 -- Ngày tạo: 2024
 -- =============================================
 
+-- Insert dữ liệu faculties
+INSERT INTO faculties (id, faculty_name) VALUES
+('AT1', 'An toàn thông tin'),
+('CB1', 'Cơ bản'),
+('CN1', 'Công nghệ thông tin'),
+('DT1', 'Điện tử'),
+('KT1', 'Kinh tế'),
+('PT1', 'Phát thanh truyền hình'),
+('QT1', 'Quản trị'),
+('TTQT', 'Thông tin quản trị'),
+('VKH', 'Viễn thông khoa học'),
+('VKT', 'Viễn thông kỹ thuật'),
+('VT1', 'Viễn thông')
+ON DUPLICATE KEY UPDATE 
+id = VALUES(id),
+faculty_name = VALUES(faculty_name);
+
+
 -- Insert dữ liệu phòng học với id cụ thể
 INSERT INTO rooms (id, phong, capacity, building, type, status, note) VALUES
 (1, '301', 36, 'A1', 'CLC', 'AVAILABLE', 'Lớp CLC 2024'),

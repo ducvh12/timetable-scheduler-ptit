@@ -80,6 +80,7 @@ public class SubjectServiceImpl implements SubjectService {
         return subjectRepository.findSubjectsWithMajorInfoByMajorCodes(classYear, programType, majorCodes);
     }
 
+
     @Override
     public List<Set<String>> groupMajorsBySharedSubjects(String classYear, String programType) {
         // Lấy danh sách môn theo năm học (lọc chính quy, loại môn chung)
@@ -90,6 +91,13 @@ public class SubjectServiceImpl implements SubjectService {
                     .findSubjectsWithMajorInfoByProgramType(classYear, "CLC");
             subjects.addAll(appendSubjects);
         }
+
+//        if(programType.equals("Chung")){
+//            List<SubjectMajorDTO> appendSubjects = subjectRepository
+//                    .findSubjectsWithMajorInfoByProgramType(classYear, "CLC");
+//            subjects.addAll(appendSubjects);
+//        }
+
         for(SubjectMajorDTO subjectMajorDTO : subjects) {
             System.out.println(subjectMajorDTO);
         }
@@ -104,7 +112,11 @@ public class SubjectServiceImpl implements SubjectService {
 
     @Override
     public List<SubjectMajorDTO> getCommonSubjects() {
-        return subjectRepository.findCommonSubjects();
+        List<SubjectMajorDTO> subjectMajorDTOs =  subjectRepository.findCommonSubjects();
+        if(subjectMajorDTOs.isEmpty()){
+            System.out.println("Không tìm thấy môn học chung nào!");
+        }
+        return subjectMajorDTOs;
     }
 
     /**
