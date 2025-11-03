@@ -14,8 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/major-building-preferences")
 @RequiredArgsConstructor
-@CrossOrigin(origins = { "http://localhost:3000", "http://localhost:3001", "http://localhost:8080",
-        "http://localhost:8081" })
+
 public class MajorBuildingPreferenceController {
 
     private final MajorBuildingPreferenceService preferenceService;
