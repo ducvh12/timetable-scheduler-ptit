@@ -40,7 +40,6 @@ build/
 .github
 
 src/main/resources/application.yml
-src/main/resources/application-production.yml
 
 Dockerfile
 docker-compose.yml
