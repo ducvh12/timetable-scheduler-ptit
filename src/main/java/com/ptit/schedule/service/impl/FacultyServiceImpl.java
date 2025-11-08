@@ -19,10 +19,6 @@ import java.util.stream.Collectors;
 public class FacultyServiceImpl implements FacultyService {
     
     private final FacultyRepository facultyRepository;
-    
-    /**
-     * Lấy tất cả faculties
-     */
     @Override
     @Transactional(readOnly = true)
     public List<FacultyResponse> getAllFaculties() {
@@ -31,10 +27,7 @@ public class FacultyServiceImpl implements FacultyService {
                 .map(FacultyResponse::fromEntity)
                 .collect(Collectors.toList());
     }
-    
-    /**
-     * Lấy faculty theo ID
-     */
+
     @Override
     @Transactional(readOnly = true)
     public FacultyResponse getFacultyById(String id) {
@@ -43,9 +36,6 @@ public class FacultyServiceImpl implements FacultyService {
         return FacultyResponse.fromEntity(faculty);
     }
 
-    /**
-     * Tạo faculty mới
-     */
     @Override
     public FacultyResponse createFaculty(FacultyRequest request) {
         Faculty faculty = new Faculty();
@@ -55,10 +45,7 @@ public class FacultyServiceImpl implements FacultyService {
         Faculty savedFaculty = facultyRepository.save(faculty);
         return FacultyResponse.fromEntity(savedFaculty);
     }
-    
-    /**
-     * Cập nhật faculty
-     */
+
     @Override
     public FacultyResponse updateFaculty(String id, FacultyRequest request) {
         Faculty faculty = facultyRepository.findById(id)
@@ -69,10 +56,7 @@ public class FacultyServiceImpl implements FacultyService {
         Faculty savedFaculty = facultyRepository.save(faculty);
         return FacultyResponse.fromEntity(savedFaculty);
     }
-    
-    /**
-     * Xóa faculty
-     */
+
     @Override
     public void deleteFaculty(String id) {
         if (!facultyRepository.existsById(id)) {

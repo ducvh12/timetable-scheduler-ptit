@@ -142,9 +142,6 @@ public class RoomServiceImpl implements RoomService {
 
         if (!notFoundRooms.isEmpty()) {
             log.warn("Could not find {} rooms: {}", notFoundRooms.size(), notFoundRooms);
-            // Optionally throw exception if strict mode is needed
-            // throw new RuntimeException("Không tìm thấy các phòng: " + String.join(", ",
-            // notFoundRooms));
         }
 
         log.info("Bulk updated {} rooms to status {}", updatedRooms.size(), request.getStatus());
@@ -199,8 +196,6 @@ public class RoomServiceImpl implements RoomService {
                 .collect(Collectors.toList());
     }
 
-    // Method để pick room cho TimetableSchedulingService (sử dụng Room Entity trực
-    // tiếp)
     public RoomPickResult pickRoom(List<Room> rooms, Integer sisoPerClass, Set<Object> occupied,
             Integer thu, Integer kip, String subjectType, String studentYear,
             String heDacThu, List<String> weekSchedule, String nganh, String maMon) {
