@@ -35,9 +35,9 @@ server:
 api:
   prefix: ${API_PREFIX:/api/v1}
 
-fe:
-  url: ${FRONTEND_URL:http://localhost:3000}
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  fe:
+    url: ${FRONTEND_URL:http://localhost:3000}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
 springdoc:
   api-docs:

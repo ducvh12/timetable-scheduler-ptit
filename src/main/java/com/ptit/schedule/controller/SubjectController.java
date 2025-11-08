@@ -202,9 +202,11 @@ public class SubjectController {
     public ResponseEntity<ApiResponse<List<SubjectMajorDTO>>> getSubjectsAndMajorByMajorCodes(
             @Nullable @RequestParam String classYear,
             @RequestParam String programType,
-            @Nullable @RequestParam List<String> majorCodes) {  // ✅ List<String>
+            @Nullable @RequestParam List<String> majorCodes) {
         try {
-
+//            for(String majorCode : majorCodes) {
+//                System.out.println(majorCode);
+//            }
             List<SubjectMajorDTO> subjects =
                     subjectService.getSubjectAndMajorCodeByClassYear(classYear, programType, majorCodes);
             if(programType.equals("Chung")){
