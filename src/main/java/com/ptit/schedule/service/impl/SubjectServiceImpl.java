@@ -109,9 +109,9 @@ public class SubjectServiceImpl implements SubjectService {
 //            return separateMajorsByClassYear(subjects);
 //        }
 
-        for(SubjectMajorDTO subjectMajorDTO : subjects) {
-            System.out.println(subjectMajorDTO);
-        }
+//        for(SubjectMajorDTO subjectMajorDTO : subjects) {
+//            System.out.println(subjectMajorDTO);
+//        }
         // Kiểm tra nếu là năm cuối (khóa 2022) thì trả về separate majors
         if (isLastYear(classYear)) {
             return separateMajorsByClassYear(subjects);
