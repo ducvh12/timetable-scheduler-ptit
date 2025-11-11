@@ -1,5 +1,6 @@
 package com.ptit.schedule.service.impl;
 
+
 import com.ptit.schedule.dto.*;
 import com.ptit.schedule.entity.*;
 import com.ptit.schedule.repository.*;
@@ -77,7 +78,14 @@ public class SubjectServiceImpl implements SubjectService {
 
     @Override
     public List<SubjectMajorDTO> getSubjectAndMajorCodeByClassYear(String classYear, String programType, List<String> majorCodes) {
-        return subjectRepository.findSubjectsWithMajorInfoByMajorCodes(classYear, programType, majorCodes);
+        for (String majorCode : majorCodes) {
+            System.out.println("majorCode : " + majorCode);
+        }
+        List<SubjectMajorDTO> subjectMajorDTOList =  subjectRepository.findSubjectsWithMajorInfoByMajorCodes(classYear, programType, majorCodes);
+        if(programType.equals("Đặc thù")){
+            subjectMajorDTOList.addAll(subjectRepository.findSubjectsWithMajorInfoByMajorCodes(classYear, "CLC", majorCodes));
+        }
+        return subjectMajorDTOList;
     }
 
 
@@ -87,15 +95,18 @@ public class SubjectServiceImpl implements SubjectService {
         List<SubjectMajorDTO> subjects = subjectRepository
                 .findSubjectsWithMajorInfoByProgramType(classYear, programType);
         if(programType.equals("Đặc thù")){
+
             List<SubjectMajorDTO> appendSubjects = subjectRepository
                     .findSubjectsWithMajorInfoByProgramType(classYear, "CLC");
             subjects.addAll(appendSubjects);
+            return separateMajorsByClassYear(subjects);
         }
 
 //        if(programType.equals("Chung")){
 //            List<SubjectMajorDTO> appendSubjects = subjectRepository
 //                    .findSubjectsWithMajorInfoByProgramType(classYear, "CLC");
 //            subjects.addAll(appendSubjects);
+//            return separateMajorsByClassYear(subjects);
 //        }
 
         for(SubjectMajorDTO subjectMajorDTO : subjects) {
