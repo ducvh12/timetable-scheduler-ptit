@@ -156,6 +156,36 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     """)
     Page<Subject> findAllWithMajorAndFaculty(Pageable pageable);
 
+    /**
+     * Lấy subjects với pagination và filter
+     */
+    @Query("""
+    SELECT s
+    FROM Subject s
+    JOIN s.major m
+    WHERE (:semester IS NULL OR s.semester = :semester)
+      AND (:classYear IS NULL OR m.classYear = :classYear)
+      AND (:majorCode IS NULL OR m.majorCode = :majorCode)
+      AND (:programType IS NULL OR s.programType = :programType)
+    """)
+    Page<Subject> findAllWithFilters(
+        @Param("semester") String semester,
+        @Param("classYear") String classYear,
+        @Param("majorCode") String majorCode,
+        @Param("programType") String programType,
+        Pageable pageable
+    );
+
+    /**
+     * Tìm tất cả subjects theo semester
+     */
+    List<Subject> findBySemester(String semester);
+
+    /**
+     * Xóa tất cả subjects theo semester
+     */
+    void deleteBySemester(String semester);
+
 
 }
 

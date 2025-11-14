@@ -46,15 +46,37 @@ public class SubjectController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDir) {
+            @RequestParam(defaultValue = "asc") String sortDir,
+            @RequestParam(required = false) String semester,
+            @RequestParam(required = false) String classYear,
+            @RequestParam(required = false) String majorCode,
+            @RequestParam(required = false) String programType) {
 
         try {
             // Validate parameters
             if (page < 0) page = 0;
             if (size <= 0 || size > 100) size = 10; // Limit max size to 100
 
-            Page<SubjectFullDTO> result = subjectService.getAllSubjectsWithPagination(page, size, sortBy, sortDir);
-            PagedResponse<SubjectFullDTO> pagedResponse =  PagedResponse.<SubjectFullDTO>builder()
+            // Kiểm tra nếu có bất kỳ filter nào
+            boolean hasFilters = (semester != null && !semester.trim().isEmpty()) ||
+                               (classYear != null && !classYear.trim().isEmpty()) ||
+                               (majorCode != null && !majorCode.trim().isEmpty()) ||
+                               (programType != null && !programType.trim().isEmpty());
+
+            Page<SubjectFullDTO> result;
+            
+            if (hasFilters) {
+                // Sử dụng query có filter
+                result = subjectService.getAllSubjectsWithPaginationAndFilters(
+                    page, size, sortBy, sortDir, 
+                    semester, classYear, majorCode, programType
+                );
+            } else {
+                // Sử dụng query không có filter (performance tốt hơn)
+                result = subjectService.getAllSubjectsWithPagination(page, size, sortBy, sortDir);
+            }
+
+            PagedResponse<SubjectFullDTO> pagedResponse = PagedResponse.<SubjectFullDTO>builder()
                     .page(result.getNumber())
                     .items(result.getContent().stream().toList())
                     .totalPages(result.getTotalPages())
@@ -131,6 +153,54 @@ public class SubjectController {
         } catch (RuntimeException e) {
             ApiResponse<Void> response = ApiResponse.notFound(e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+    }
+
+    @Operation(summary = "Xóa môn học theo học kỳ", description = "Xóa tất cả môn học theo semester")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Xóa thành công")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Không tìm thấy môn học")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Semester không hợp lệ")
+    @DeleteMapping("/semester/{semester}")
+    public ResponseEntity<ApiResponse<Integer>> deleteSubjectsBySemester(@PathVariable String semester) {
+        try {
+            int deletedCount = subjectService.deleteSubjectsBySemester(semester);
+            ApiResponse<Integer> response = ApiResponse.success(
+                deletedCount, 
+                "Đã xóa " + deletedCount + " môn học của học kỳ " + semester
+            );
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("Không tìm thấy")) {
+                ApiResponse<Integer> response = ApiResponse.notFound(e.getMessage());
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            } else {
+                ApiResponse<Integer> response = ApiResponse.badRequest(e.getMessage());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            }
+        }
+    }
+
+    @Operation(summary = "Xóa tất cả môn học theo học kỳ", description = "Xóa toàn bộ môn học của một học kỳ cụ thể")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Xóa thành công")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Không tìm thấy môn học")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Semester không hợp lệ")
+    @DeleteMapping("/semester/{semester}/all")
+    public ResponseEntity<ApiResponse<Integer>> deleteAllSubjectsBySemester(@PathVariable String semester) {
+        try {
+            int deletedCount = subjectService.deleteAllSubjectsBySemester(semester);
+            ApiResponse<Integer> response = ApiResponse.success(
+                deletedCount, 
+                "Đã xóa tất cả " + deletedCount + " môn học của học kỳ " + semester
+            );
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("Không tìm thấy")) {
+                ApiResponse<Integer> response = ApiResponse.notFound(e.getMessage());
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            } else {
+                ApiResponse<Integer> response = ApiResponse.badRequest(e.getMessage());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            }
         }
     }
 

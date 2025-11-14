@@ -17,6 +17,18 @@ public interface SubjectService {
     // Lấy tất cả subjects với phân trang
     Page<SubjectFullDTO> getAllSubjectsWithPagination(int page, int size, String sortBy, String sortDir);
 
+    // Lấy tất cả subjects với phân trang và filter
+    Page<SubjectFullDTO> getAllSubjectsWithPaginationAndFilters(
+        int page, 
+        int size, 
+        String sortBy, 
+        String sortDir,
+        String semester,
+        String classYear,
+        String majorCode,
+        String programType
+    );
+
     // Lấy subjects theo major ID
     List<SubjectResponse> getSubjectsByMajorId(Integer majorId);
 
@@ -35,6 +47,12 @@ public interface SubjectService {
     // Cập nhật subject
     SubjectResponse updateSubject(Long id, SubjectRequest request);
     
-    // Xóa subject
+    // Xóa subject theo ID
     void deleteSubject(Long id);
+
+    // Xóa subjects theo semester
+    int deleteSubjectsBySemester(String semester);
+
+    // Xóa tất cả subjects theo semester
+    int deleteAllSubjectsBySemester(String semester);
 }
