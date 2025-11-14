@@ -55,4 +55,10 @@ public interface SubjectService {
 
     // Xóa tất cả subjects theo semester
     int deleteAllSubjectsBySemester(String semester);
+
+    // Lấy tất cả program types (distinct)
+    List<String> getAllProgramTypes();
+
+    // Lấy tất cả class years (distinct)
+    List<String> getAllClassYears();
 }

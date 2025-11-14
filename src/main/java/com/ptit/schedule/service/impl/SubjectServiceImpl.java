@@ -202,6 +202,7 @@ public class SubjectServiceImpl implements SubjectService {
                 .studentsPerClass(request.getStudentsPerClass())
                 .programType(request.getProgramType().trim())
                 .major(major)
+                .semester(request.getSemester().trim())
                 .build();
 
         Subject savedSubject = subjectRepository.save(subject);
@@ -401,6 +402,24 @@ public class SubjectServiceImpl implements SubjectService {
                 dfs(neighbor, graph, visited, component);
             }
         }
+    }
+
+    /**
+     * Lấy tất cả program types (distinct)
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> getAllProgramTypes() {
+        return subjectRepository.findAllDistinctProgramTypes();
+    }
+
+    /**
+     * Lấy tất cả class years (distinct)
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> getAllClassYears() {
+        return subjectRepository.findAllDistinctClassYears();
     }
 
 }

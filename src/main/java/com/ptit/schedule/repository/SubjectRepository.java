@@ -186,6 +186,17 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
      */
     void deleteBySemester(String semester);
 
+    /**
+     * Lấy tất cả program types (distinct)
+     */
+    @Query("SELECT DISTINCT s.programType FROM Subject s WHERE s.programType IS NOT NULL ORDER BY s.programType")
+    List<String> findAllDistinctProgramTypes();
+
+    /**
+     * Lấy tất cả class years (distinct) từ Major
+     */
+    @Query("SELECT DISTINCT m.classYear FROM Major m WHERE m.classYear IS NOT NULL ORDER BY m.classYear")
+    List<String> findAllDistinctClassYears();
 
 }
 
