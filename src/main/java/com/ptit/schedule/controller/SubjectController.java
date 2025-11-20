@@ -1,37 +1,23 @@
 package com.ptit.schedule.controller;
 
 import com.ptit.schedule.dto.*;
-import com.ptit.schedule.entity.Subject;
 import com.ptit.schedule.service.ExcelReaderService;
 import com.ptit.schedule.service.SubjectService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.Nullable;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 @RestController
 @RequestMapping("api/subjects")
@@ -214,13 +200,16 @@ public class SubjectController {
     )
     @GetMapping("/majors")
     public ResponseEntity<ApiResponse<List<SubjectMajorDTO>>> getSubjectsAndMajorByMajorCodes(
-            @RequestParam String classYear,
+            @Nullable @RequestParam String classYear,
             @RequestParam String programType,
-            @RequestParam List<String> majorCodes) {  // ✅ List<String>
+            @Nullable @RequestParam List<String> majorCodes) {  // ✅ List<String>
         try {
+
             List<SubjectMajorDTO> subjects =
                     subjectService.getSubjectAndMajorCodeByClassYear(classYear, programType, majorCodes);
-
+            if(programType.equals("Chung")){
+                subjects = subjectService.getCommonSubjects();
+            }
             ApiResponse<List<SubjectMajorDTO>> response =
                     ApiResponse.success(subjects, "Lấy danh sách môn học và ngành theo khóa thành công");
             return ResponseEntity.ok(response);
@@ -263,14 +252,13 @@ public class SubjectController {
     )
     @GetMapping("/common-subjects")
     public ResponseEntity<ApiResponse<List<SubjectMajorDTO>>> getCommonSubjects(
-            @RequestParam String classYear,
-            @RequestParam String programType) {
+          ) {
         try {
             List<SubjectMajorDTO> commonSubjects = subjectService.getCommonSubjects();
 
             if (commonSubjects == null || commonSubjects.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponse.notFound("Không tìm thấy môn chung cho khóa " + classYear));
+                        .body(ApiResponse.notFound("Không tìm thấy môn chung"));
             }
 
             return ResponseEntity.ok(ApiResponse.success(commonSubjects, "Lấy danh sách môn chung thành công"));

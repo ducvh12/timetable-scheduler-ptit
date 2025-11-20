@@ -18,8 +18,6 @@ import java.util.List;
 @RestController
 @RequestMapping("api/schedule-validation")
 @RequiredArgsConstructor
-@CrossOrigin(origins = { "http://localhost:3000", "http://localhost:3001", "http://localhost:8080",
-        "http://localhost:5173", "http://localhost:4173" })
 public class ScheduleValidationController {
 
     private final ScheduleExcelReaderService excelReaderService;

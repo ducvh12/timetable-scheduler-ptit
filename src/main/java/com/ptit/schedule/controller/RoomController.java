@@ -23,8 +23,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/rooms")
 @RequiredArgsConstructor
-@CrossOrigin(origins = { "http://localhost:3000", "http://localhost:3001", "http://localhost:8080",
-        "http://localhost:8081" })
 public class RoomController {
 
     private final RoomService roomService;

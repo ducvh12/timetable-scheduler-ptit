@@ -116,21 +116,21 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
 
     @Query("""
     SELECT new com.ptit.schedule.dto.SubjectMajorDTO(
-        s.subjectCode,
-        s.subjectName,
-        m.majorCode,
-        m.classYear,
-        s.theoryHours,
-        s.exerciseHours,
-        s.labHours,
-        s.projectHours,
-        s.selfStudyHours,
-        m.numberOfStudents,
-        s.studentsPerClass
-    )
+         s.subjectCode,
+         s.subjectName,
+         m.majorCode,
+         m.classYear,
+         s.theoryHours,
+         s.exerciseHours,
+         s.labHours,
+         s.projectHours,
+         s.selfStudyHours,
+         CAST(SUM(m.numberOfStudents) AS integer),
+         s.studentsPerClass
+     )
     FROM Subject s
     JOIN s.major m
-    WHERE  s.subjectCode IN (
+    WHERE s.subjectCode IN (
           'BAS1160',
           'BAS1153',
           'SKD1102',
@@ -140,6 +140,9 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
           'BAS1158',
           'SKD1101'
       )
+    GROUP BY s.subjectCode, s.subjectName, m.majorCode, m.classYear,
+             s.theoryHours, s.exerciseHours, s.labHours,
+             s.projectHours, s.selfStudyHours, s.studentsPerClass
 """)
     List<SubjectMajorDTO> findCommonSubjects();
 
@@ -152,4 +155,8 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     JOIN s.major m
     """)
     Page<Subject> findAllWithMajorAndFaculty(Pageable pageable);
+
+
 }
+
+

@@ -38,4 +38,9 @@ build/
 .gitattributes
 *.patch
 .github
+
 src/main/resources/application.yml
+
+Dockerfile
+docker-compose.yml
+
