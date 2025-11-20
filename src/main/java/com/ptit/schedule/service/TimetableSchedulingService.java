@@ -470,7 +470,7 @@ public class TimetableSchedulingService {
                                     roomResult.isPreferredBuilding() ? "YES" : "NO");
 
                             // Mark room as occupied in BOTH session and working set
-                            String occupationKey = classRoomCode + "|" + rowThu + "|" + rowKip;
+                            String occupationKey = classRoomMaPhong + "|" + rowThu + "|" + rowKip;
                             occupiedRooms.add(occupationKey); // Working set for this generation
                             sessionOccupiedRooms.add(occupationKey); // Session storage (temporary)
                         }
@@ -598,9 +598,9 @@ public class TimetableSchedulingService {
                     }
 
                     // Mark room as occupied for BOTH days with the same kip
-                    if (classRoomCode != null) {
+                    if (classRoomCode != null && classRoomMaPhong != null) {
                         for (Integer day : dayPairSlot.getDays()) {
-                            String occupationKey = classRoomCode + "|" + day + "|" + targetKip;
+                            String occupationKey = classRoomMaPhong + "|" + day + "|" + targetKip;
                             occupiedRooms.add(occupationKey);
                             sessionOccupiedRooms.add(occupationKey);
                         }
