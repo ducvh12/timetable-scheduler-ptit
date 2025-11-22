@@ -1,5 +1,6 @@
 package com.ptit.schedule.service.impl;
 
+
 import com.ptit.schedule.dto.*;
 import com.ptit.schedule.entity.*;
 import com.ptit.schedule.repository.*;
@@ -61,6 +62,46 @@ public class SubjectServiceImpl implements SubjectService {
         }
     }
 
+    /**
+     * Lấy tất cả subjects với phân trang và filter
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<SubjectFullDTO> getAllSubjectsWithPaginationAndFilters(
+            int page, 
+            int size, 
+            String sortBy, 
+            String sortDir,
+            String semester,
+            String classYear,
+            String majorCode,
+            String programType) {
+        try {
+            // Tạo Sort object
+            Sort sort = sortDir.equalsIgnoreCase("desc") ? 
+                Sort.by(sortBy).descending() : 
+                Sort.by(sortBy).ascending();
+            
+            // Tạo Pageable object
+            Pageable pageable = PageRequest.of(page, size, sort);
+            
+            // Lấy data với pagination và filter
+            Page<Subject> subjectPage = subjectRepository.findAllWithFilters(
+                semester != null && !semester.trim().isEmpty() ? semester : null,
+                classYear != null && !classYear.trim().isEmpty() ? classYear : null,
+                majorCode != null && !majorCode.trim().isEmpty() ? majorCode : null,
+                programType != null && !programType.trim().isEmpty() ? programType : null,
+                pageable
+            );
+            
+            // Convert Page<Subject> sang Page<SubjectFullDTO>
+            return subjectPage.map(SubjectFullDTO::fromEntity);
+            
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi khi lấy danh sách môn học với filter: " + e.getMessage());
+        }
+    }
+
 
 
     /**
@@ -77,7 +118,14 @@ public class SubjectServiceImpl implements SubjectService {
 
     @Override
     public List<SubjectMajorDTO> getSubjectAndMajorCodeByClassYear(String classYear, String programType, List<String> majorCodes) {
-        return subjectRepository.findSubjectsWithMajorInfoByMajorCodes(classYear, programType, majorCodes);
+        for (String majorCode : majorCodes) {
+            System.out.println("majorCode : " + majorCode);
+        }
+        List<SubjectMajorDTO> subjectMajorDTOList =  subjectRepository.findSubjectsWithMajorInfoByMajorCodes(classYear, programType, majorCodes);
+        if(programType.equals("Đặc thù")){
+            subjectMajorDTOList.addAll(subjectRepository.findSubjectsWithMajorInfoByMajorCodes(classYear, "CLC", majorCodes));
+        }
+        return subjectMajorDTOList;
     }
 
 
@@ -87,15 +135,18 @@ public class SubjectServiceImpl implements SubjectService {
         List<SubjectMajorDTO> subjects = subjectRepository
                 .findSubjectsWithMajorInfoByProgramType(classYear, programType);
         if(programType.equals("Đặc thù")){
+
             List<SubjectMajorDTO> appendSubjects = subjectRepository
                     .findSubjectsWithMajorInfoByProgramType(classYear, "CLC");
             subjects.addAll(appendSubjects);
+            return separateMajorsByClassYear(subjects);
         }
 
 //        if(programType.equals("Chung")){
 //            List<SubjectMajorDTO> appendSubjects = subjectRepository
 //                    .findSubjectsWithMajorInfoByProgramType(classYear, "CLC");
 //            subjects.addAll(appendSubjects);
+//            return separateMajorsByClassYear(subjects);
 //        }
 
         for(SubjectMajorDTO subjectMajorDTO : subjects) {
@@ -151,6 +202,7 @@ public class SubjectServiceImpl implements SubjectService {
                 .studentsPerClass(request.getStudentsPerClass())
                 .programType(request.getProgramType().trim())
                 .major(major)
+                .semester(request.getSemester().trim())
                 .build();
 
         Subject savedSubject = subjectRepository.save(subject);
@@ -239,6 +291,35 @@ public class SubjectServiceImpl implements SubjectService {
         subjectRepository.deleteById(id);
     }
 
+    /**
+     * Xóa subjects theo semester (trả về số lượng đã xóa)
+     */
+    @Override
+    @Transactional
+    public int deleteSubjectsBySemester(String semester) {
+        if (semester == null || semester.trim().isEmpty()) {
+            throw new RuntimeException("Semester không được để trống");
+        }
+        
+        List<Subject> subjects = subjectRepository.findBySemester(semester);
+        if (subjects.isEmpty()) {
+            throw new RuntimeException("Không tìm thấy môn học nào với semester: " + semester);
+        }
+        
+        int count = subjects.size();
+        subjectRepository.deleteBySemester(semester);
+        return count;
+    }
+
+    /**
+     * Xóa tất cả subjects theo semester (alias cho deleteSubjectsBySemester)
+     */
+    @Override
+    @Transactional
+    public int deleteAllSubjectsBySemester(String semester) {
+        return deleteSubjectsBySemester(semester);
+    }
+
 
     /**
      * Kiểm tra xem có phải năm cuối không (khóa 2022)
@@ -321,6 +402,24 @@ public class SubjectServiceImpl implements SubjectService {
                 dfs(neighbor, graph, visited, component);
             }
         }
+    }
+
+    /**
+     * Lấy tất cả program types (distinct)
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> getAllProgramTypes() {
+        return subjectRepository.findAllDistinctProgramTypes();
+    }
+
+    /**
+     * Lấy tất cả class years (distinct)
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> getAllClassYears() {
+        return subjectRepository.findAllDistinctClassYears();
     }
 
 }

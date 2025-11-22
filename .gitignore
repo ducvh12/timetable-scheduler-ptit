@@ -39,7 +39,7 @@ build/
 *.patch
 .github
 
-src/main/resources/application.yml
+#src/main/resources/application.yml
 
 Dockerfile
 docker-compose.yml

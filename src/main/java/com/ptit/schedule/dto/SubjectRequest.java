@@ -25,7 +25,7 @@ public class SubjectRequest {
     private String subjectName;
     
 //    @NotNull(message = "Students per class is required")
-    @Min(value = 1, message = "Students per class must be at least 1")
+    @Min(value = 0, message = "Students per class must be at least 1")
     @Max(value = 200, message = "Students per class must not exceed 200")
     private Integer studentsPerClass;
     
