@@ -173,8 +173,8 @@ public class SubjectServiceImpl implements SubjectService {
         Map<String, SubjectMajorDTO> groupedSubjects = new HashMap<>();
         
         for (SubjectMajorDTO subject : subjectMajorDTOs) {
-            String key = subject.getSubjectCode();
-                
+            String key = subject.getSubjectCode() + "-" + subject.getClassYear();
+
             if (groupedSubjects.containsKey(key)) {
                 // Nếu đã có môn học này, cộng thêm số sinh viên
                 SubjectMajorDTO existing = groupedSubjects.get(key);
