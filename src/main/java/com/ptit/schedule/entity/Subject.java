@@ -61,4 +61,7 @@ public class Subject {
     @Column(name = "semester", nullable = true)
     private String semester;
 
+    @Column(name = "is_common")
+    private Boolean isCommon;
+
 }

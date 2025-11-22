@@ -86,4 +86,6 @@ public class SubjectRequest {
 
     @NotNull(message = "Semester is required")
     private String semester;
+
+    private Boolean isCommon;
 }

@@ -203,6 +203,7 @@ public class SubjectServiceImpl implements SubjectService {
                 .programType(request.getProgramType().trim())
                 .major(major)
                 .semester(request.getSemester().trim())
+                .isCommon(request.getIsCommon())
                 .build();
 
         Subject savedSubject = subjectRepository.save(subject);
@@ -275,7 +276,7 @@ public class SubjectServiceImpl implements SubjectService {
         subject.setMajor(major);
         subject.setProgramType(request.getProgramType().trim());
         subject.setSemester(request.getSemester());
-
+        subject.setIsCommon(request.getIsCommon());
         Subject savedSubject = subjectRepository.save(subject);
         return SubjectResponse.fromEntity(savedSubject);
     }

@@ -33,7 +33,7 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
     private static final int COL_FACULTY_ID = 18;  // S? (as used before)
     private static final int COL_DEPARTMENT = 19;  // T? (as used before)
     private static final int COL_EXAM_FORMAT = 22; // V? (as used before)
-
+    private static final int COL_IS_COMMON = 24;
     
     @Override
     public List<SubjectRequest> readSubjectsFromExcel(MultipartFile file, String semester) {
@@ -93,6 +93,7 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
                     .department(formatter.formatCellValue(row.getCell(COL_DEPARTMENT)))                // P// R
                     .examFormat(formatter.formatCellValue(row.getCell(COL_EXAM_FORMAT)))
                     .semester(semester)// S
+                    .isCommon(formatter.formatCellValue(row.getCell(COL_IS_COMMON)).equalsIgnoreCase("chung"))
                     .build();
 
             if(tmp != null && !tmp.isBlank()){
