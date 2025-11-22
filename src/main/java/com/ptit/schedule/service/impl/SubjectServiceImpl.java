@@ -149,9 +149,9 @@ public class SubjectServiceImpl implements SubjectService {
 //            return separateMajorsByClassYear(subjects);
 //        }
 
-        for(SubjectMajorDTO subjectMajorDTO : subjects) {
-            System.out.println(subjectMajorDTO);
-        }
+//        for(SubjectMajorDTO subjectMajorDTO : subjects) {
+//            System.out.println(subjectMajorDTO);
+//        }
         // Kiểm tra nếu là năm cuối (khóa 2022) thì trả về separate majors
         if (isLastYear(classYear)) {
             return separateMajorsByClassYear(subjects);
@@ -163,11 +163,60 @@ public class SubjectServiceImpl implements SubjectService {
 
     @Override
     public List<SubjectMajorDTO> getCommonSubjects() {
-        List<SubjectMajorDTO> subjectMajorDTOs =  subjectRepository.findCommonSubjects();
+        List<SubjectMajorDTO> subjectMajorDTOs = subjectRepository.findCommonSubjects();
         if(subjectMajorDTOs.isEmpty()){
             System.out.println("Không tìm thấy môn học chung nào!");
+            return subjectMajorDTOs;
         }
-        return subjectMajorDTOs;
+        
+        // Group các môn học theo mã môn và tính tổng số sinh viên
+        Map<String, SubjectMajorDTO> groupedSubjects = new HashMap<>();
+        
+        for (SubjectMajorDTO subject : subjectMajorDTOs) {
+            String key = subject.getSubjectCode();
+                
+            if (groupedSubjects.containsKey(key)) {
+                // Nếu đã có môn học này, cộng thêm số sinh viên
+                SubjectMajorDTO existing = groupedSubjects.get(key);
+                int totalStudents = existing.getNumberOfStudents() + subject.getNumberOfStudents();
+                
+                // Tạo SubjectMajorDTO mới với tổng số sinh viên và majorCode = "Chung"
+                SubjectMajorDTO updated = new SubjectMajorDTO(
+                    existing.getSubjectCode(),
+                    existing.getSubjectName(),
+                    "Chung", // Set majorCode thành "Chung"
+                    existing.getClassYear(),
+                    existing.getTheoryHours(),
+                    existing.getExerciseHours(),
+                    existing.getLabHours(),
+                    existing.getProjectHours(),
+                    existing.getSelfStudyHours(),
+                    totalStudents, // Tổng số sinh viên
+                    existing.getStudentPerClass()
+                );
+                
+                groupedSubjects.put(key, updated);
+            } else {
+                // Nếu chưa có, thêm mới với majorCode = "Chung"
+                SubjectMajorDTO newSubject = new SubjectMajorDTO(
+                    subject.getSubjectCode(),
+                    subject.getSubjectName(),
+                    "Chung", // Set majorCode thành "Chung"
+                    subject.getClassYear(),
+                    subject.getTheoryHours(),
+                    subject.getExerciseHours(),
+                    subject.getLabHours(),
+                    subject.getProjectHours(),
+                    subject.getSelfStudyHours(),
+                    subject.getNumberOfStudents(),
+                    subject.getStudentPerClass()
+                );
+                
+                groupedSubjects.put(key, newSubject);
+            }
+        }
+        
+        return new ArrayList<>(groupedSubjects.values());
     }
 
     /**
@@ -327,7 +376,8 @@ public class SubjectServiceImpl implements SubjectService {
      */
     private boolean isLastYear(String classYear) {
         // Logic kiểm tra năm cuối - có thể adjust theo business rule
-        return "2022".equals(classYear);
+        String finalYear = subjectRepository.findAllDistinctClassYears().get(0);
+        return finalYear.equals(classYear);
     }
 
     /**

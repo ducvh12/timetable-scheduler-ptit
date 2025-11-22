@@ -60,17 +60,7 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     JOIN s.major m
     WHERE m.classYear = :classYear
       AND s.programType = :programType
-      AND s.subjectCode NOT IN (
-          'BAS1160',
-          'BAS1153',
-          'SKD1102',
-          'BAS1152',
-          'SKD1103',
-          'MUL13118',
-          'BAS1158',
-          'SKD1101',
-          'SKD1102'
-      )
+      AND s.isCommon = false
     """)
     List<SubjectMajorDTO> findSubjectsWithMajorInfoByProgramType(
             @Param("classYear") String classYear,
@@ -96,16 +86,7 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     WHERE m.classYear = :classYear
       AND s.programType = :programType
       AND m.majorCode IN :majorCodes
-      AND s.subjectCode NOT IN (
-          'BAS1160',
-          'BAS1153',
-          'SKD1102',
-          'BAS1152',
-          'SKD1103',
-          'MUL13118',
-          'BAS1158',
-          'SKD1101'
-      )
+      AND s.isCommon = false
 """)
     List<SubjectMajorDTO> findSubjectsWithMajorInfoByMajorCodes(
             @Param("classYear") String classYear,
@@ -130,16 +111,7 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
      )
     FROM Subject s
     JOIN s.major m
-    WHERE s.subjectCode IN (
-          'BAS1160',
-          'BAS1153',
-          'SKD1102',
-          'BAS1152',
-          'SKD1103',
-          'MUL13118',
-          'BAS1158',
-          'SKD1101'
-      )
+    WHERE s.isCommon = true
     GROUP BY s.subjectCode, s.subjectName, m.majorCode, m.classYear,
              s.theoryHours, s.exerciseHours, s.labHours,
              s.projectHours, s.selfStudyHours, s.studentsPerClass
@@ -197,6 +169,7 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
      */
     @Query("SELECT DISTINCT m.classYear FROM Major m WHERE m.classYear IS NOT NULL ORDER BY m.classYear")
     List<String> findAllDistinctClassYears();
+
 
 }
 
