@@ -2,7 +2,7 @@ package com.ptit.schedule.service;
 
 import com.ptit.schedule.dto.*;
 import com.ptit.schedule.entity.Room;
-import com.ptit.schedule.dto.RoomPickResult;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -12,9 +12,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Core TKB scheduling service - implements exact Python logic for timetable
- * generation
- * WITH room assignment (matching Python _pick_room logic)
+ * Service xử lý việc tạo thời khóa biểu tự động với phân bổ phòng học
  */
 @Service
 @RequiredArgsConstructor
@@ -25,11 +23,8 @@ public class TimetableSchedulingService {
     private final RoomService roomService;
     private final SubjectRoomMappingService subjectRoomMappingService;
 
-    // TEMPORARY session storage - cleared when user generates new TKB without
-    // saving
     private Set<Object> sessionOccupiedRooms = new HashSet<>();
 
-    // Rotating slots exactly matching Python
     private static final List<TimetableSlot> ROTATING_SLOTS = Arrays.asList(
             new TimetableSlot(2, "sang"), new TimetableSlot(3, "chieu"),
             new TimetableSlot(4, "sang"), new TimetableSlot(5, "chieu"),
@@ -38,178 +33,163 @@ public class TimetableSchedulingService {
             new TimetableSlot(4, "chieu"), new TimetableSlot(5, "sang"),
             new TimetableSlot(6, "chieu"), new TimetableSlot(7, "sang"));
 
-    // Rotating slots for 60-period subjects (paired consecutive days with same kip)
-    // 12 slots: 3 pairs of days × 4 kips = 12 combinations
     private static final List<DayPairSlot> ROTATING_SLOTS_60 = Arrays.asList(
-            new DayPairSlot(2, 3, 1), // Thứ 2-3, Kíp 1
-            new DayPairSlot(2, 3, 2), // Thứ 2-3, Kíp 2
-            new DayPairSlot(4, 5, 3), // Thứ 4-5, Kíp 3
-            new DayPairSlot(4, 5, 4), // Thứ 4-5, Kíp 4
-            new DayPairSlot(6, 7, 1), // Thứ 6-7, Kíp 1
-            new DayPairSlot(6, 7, 2), // Thứ 6-7, Kíp 2
-            new DayPairSlot(2, 3, 3), // Thứ 2-3, Kíp 3
-            new DayPairSlot(2, 3, 4), // Thứ 2-3, Kíp 4
-            new DayPairSlot(4, 5, 1), // Thứ 4-5, Kíp 1
-            new DayPairSlot(4, 5, 2), // Thứ 4-5, Kíp 2
-            new DayPairSlot(6, 7, 3), // Thứ 6-7, Kíp 3
-            new DayPairSlot(6, 7, 4) // Thứ 6-7, Kíp 4
+            new DayPairSlot(2, 3, 1),
+            new DayPairSlot(2, 3, 2),
+            new DayPairSlot(4, 5, 3),
+            new DayPairSlot(4, 5, 4),
+            new DayPairSlot(6, 7, 1),
+            new DayPairSlot(6, 7, 2),
+            new DayPairSlot(2, 3, 3),
+            new DayPairSlot(2, 3, 4),
+            new DayPairSlot(4, 5, 1),
+            new DayPairSlot(4, 5, 2),
+            new DayPairSlot(6, 7, 3),
+            new DayPairSlot(6, 7, 4)
     );
 
-    // Global state for batch processing (like Python)
-    private int lastSlotIdx = -1; // PERMANENT: Only updated when user confirms
-    private int sessionLastSlotIdx = -1; // TEMPORARY: Updated during generation
+    private int lastSlotIdx = -1;
+    private int sessionLastSlotIdx = -1;
 
     /**
-     * Initialize service - load lastSlotIdx from file
+     * Khởi tạo service và load trạng thái từ file
      */
     @PostConstruct
     public void init() {
         log.info("Initializing TimetableSchedulingService...");
-        // Load lastSlotIdx from persistent storage
         lastSlotIdx = dataLoaderService.loadLastSlotIdx();
         sessionLastSlotIdx = lastSlotIdx;
         log.info("Loaded lastSlotIdx from file: {}", lastSlotIdx);
     }
 
     /**
-     * Simulate Excel Flow Batch - exact Python logic with room assignment
+     * Tạo thời khóa biểu cho danh sách môn học
      */
     public TKBBatchResponse simulateExcelFlowBatch(TKBBatchRequest request) {
         try {
-            // Load template data once
             List<DataLoaderService.TKBTemplateRow> dataRows = dataLoaderService.loadTemplateData();
             if (dataRows.isEmpty()) {
-                return TKBBatchResponse.builder()
-                        .items(Collections.emptyList())
-                        .note("Template data empty or not exists")
-                        .build();
+                return buildEmptyResponse("Template data empty or not exists");
             }
 
-            // Load rooms data for room assignment
-            List<Room> rooms = roomService.getAllRooms().stream()
-                    .map(this::convertToRoom)
-                    .collect(Collectors.toList());
-
-            // CLEAR session occupied rooms when starting new TKB generation
-            sessionOccupiedRooms.clear();
-
-            // Clear subject-room mappings for new batch
-            subjectRoomMappingService.clearMappings();
-
-            // Load global occupied rooms (PERMANENT - already confirmed by user)
-            Set<Object> globalOccupiedRooms = dataLoaderService.loadGlobalOccupiedRooms();
-            log.info("Loaded {} global occupied rooms (confirmed)", globalOccupiedRooms.size());
-
-            // Start with global occupied rooms, will add session rooms during generation
-            Set<Object> occupiedRooms = new HashSet<>(globalOccupiedRooms);
-
+            List<Room> rooms = loadRooms();
+            Set<Object> occupiedRooms = initializeOccupiedRooms();
+            
             List<TKBBatchItemResponse> itemsOut = new ArrayList<>();
             int totalRows = 0;
-            int totalClasses = 0; // Count successfully processed classes
-
-            // Use PERMANENT lastSlotIdx as starting point for this generation
+            int totalClasses = 0;
+            
             sessionLastSlotIdx = lastSlotIdx;
-
-            // IMPORTANT: DO NOT SORT - Keep original order from Frontend (processingOrder)
-            // Frontend already handles the correct order: nonGrouped first, then combined
-            // Sorting here would break the cluster-based processing logic
-            List<TKBRequest> sortedItems = new ArrayList<>(request.getItems());
-            sortedItems.sort((a, b) -> {
-                if (a.getSotiet() == 60 && b.getSotiet() != 60)
-                    return -1;
-                if (a.getSotiet() != 60 && b.getSotiet() == 60)
-                    return 1;
-                return 0; // Giữ nguyên thứ tự ban đầu cho các môn khác
-            });
-            // REMOVED SORTING LOGIC - use original order from frontend
+            List<TKBRequest> sortedItems = sortSubjectsByPeriods(request.getItems());
+            
             log.info("Processing {} subjects in original order (from frontend processingOrder)", sortedItems.size());
 
             for (TKBRequest tkbRequest : sortedItems) {
-                int targetTotal = tkbRequest.getSotiet();
-                log.info("Processing subject: {} with {} periods", tkbRequest.getMa_mon(), targetTotal);
-
-                // Filter template data by total periods (exact Python logic)
-                List<DataLoaderService.TKBTemplateRow> pool = dataRows.stream()
-                        .filter(row -> toInt(row.getTotalPeriods()) == targetTotal)
-                        .collect(Collectors.toList());
-
-                if (pool.isEmpty()) {
-                    itemsOut.add(TKBBatchItemResponse.builder()
-                            .input(tkbRequest)
-                            .rows(Collections.emptyList())
-                            .note("Không có Data cho " + targetTotal + " tiết")
-                            .build());
-                    continue;
-                }
-
-                List<TKBRowResult> resultRows;
-                int classes;
-                int startingSlotIdx;
-
-                // BRANCH: Special handling for 60-period subjects vs regular subjects
-                if (targetTotal == 60) {
-                    log.info("Using SPECIAL 60-period logic for {}", tkbRequest.getMa_mon());
-                    classes = Math.max(1, toInt(tkbRequest.getSolop(), 1));
-
-                    // Map from regular slot to 60-period slot
-                    startingSlotIdx = mapRegularSlotTo60PeriodSlot(sessionLastSlotIdx);
-                    log.info("Mapped regular slot {} to 60-period slot {}", sessionLastSlotIdx, startingSlotIdx);
-
-                    resultRows = process60PeriodSubject(tkbRequest, pool, rooms, occupiedRooms, startingSlotIdx);
-                } else {
-                    // REGULAR PROCESSING
-                    classes = Math.max(1, toInt(tkbRequest.getSolop(), 1));
-
-                    // Calculate starting slot for regular subjects
-                    startingSlotIdx = (sessionLastSlotIdx + 1) % ROTATING_SLOTS.size();
-
-                    log.info("Using REGULAR logic: {} classes for {}", classes, tkbRequest.getMa_mon());
-                    resultRows = processRegularSubject(tkbRequest, pool, rooms, occupiedRooms, startingSlotIdx, classes,
-                            targetTotal);
-                }
-
-                // Common result handling
-                if (!resultRows.isEmpty()) {
-                    itemsOut.add(TKBBatchItemResponse.builder()
-                            .input(tkbRequest)
-                            .rows(resultRows)
-                            .build());
-                    totalRows += resultRows.size();
-                    totalClasses++; // Increment class count for successfully generated subject
-
-                    // Calculate end slot of this major (exact Python logic)
-                    // Update TEMPORARY sessionLastSlotIdx (will be committed later)
-                    int majorEndSlot = calculateMajorEndSlot(classes, targetTotal);
-                    sessionLastSlotIdx = (startingSlotIdx + majorEndSlot) % ROTATING_SLOTS.size();
+                TKBBatchItemResponse itemResponse = processSubject(tkbRequest, dataRows, rooms, occupiedRooms);
+                itemsOut.add(itemResponse);
+                
+                if (!itemResponse.getRows().isEmpty()) {
+                    totalRows += itemResponse.getRows().size();
+                    totalClasses++;
                 }
             }
 
-            // DO NOT save to global yet - only stored in sessionOccupiedRooms
-            // Will be saved to global when user clicks "Thêm vào kết quả"
             log.info("Generated TKB using {} rooms (temporary, not saved yet)", sessionOccupiedRooms.size());
-            log.info("Global occupied rooms: {} (permanent)", globalOccupiedRooms.size());
             log.info("Session lastSlotIdx: {} (temporary, not committed yet)", sessionLastSlotIdx);
 
             return TKBBatchResponse.builder()
                     .items(itemsOut)
                     .totalRows(totalRows)
-                    .totalClasses(totalClasses) // Return total classes successfully generated
-                    .lastSlotIdx(sessionLastSlotIdx) // Return temporary value
-                    .occupiedRoomsCount(sessionOccupiedRooms.size()) // Return session count
+                    .totalClasses(totalClasses)
+                    .lastSlotIdx(sessionLastSlotIdx)
+                    .occupiedRoomsCount(sessionOccupiedRooms.size())
                     .build();
 
         } catch (Exception e) {
             log.error("Error in simulateExcelFlowBatch: {}", e.getMessage(), e);
-            return TKBBatchResponse.builder()
-                    .items(Collections.emptyList())
-                    .error(e.getClass().getSimpleName() + ": " + e.getMessage())
-                    .build();
+            return buildEmptyResponse(e.getClass().getSimpleName() + ": " + e.getMessage());
         }
     }
 
+    private TKBBatchResponse buildEmptyResponse(String errorMessage) {
+        return TKBBatchResponse.builder()
+                .items(Collections.emptyList())
+                .error(errorMessage)
+                .build();
+    }
+
+    private List<Room> loadRooms() {
+        return roomService.getAllRooms().stream()
+                .map(this::convertToRoom)
+                .collect(Collectors.toList());
+    }
+
+    private Set<Object> initializeOccupiedRooms() {
+        sessionOccupiedRooms.clear();
+        subjectRoomMappingService.clearMappings();
+        
+        Set<Object> globalOccupiedRooms = dataLoaderService.loadGlobalOccupiedRooms();
+        log.info("Loaded {} global occupied rooms (confirmed)", globalOccupiedRooms.size());
+        
+        return new HashSet<>(globalOccupiedRooms);
+    }
+
+    private List<TKBRequest> sortSubjectsByPeriods(List<TKBRequest> items) {
+        List<TKBRequest> sorted = new ArrayList<>(items);
+        sorted.sort((a, b) -> {
+            if (a.getSotiet() == 60 && b.getSotiet() != 60) return -1;
+            if (a.getSotiet() != 60 && b.getSotiet() == 60) return 1;
+            return 0;
+        });
+        return sorted;
+    }
+
+    private TKBBatchItemResponse processSubject(TKBRequest tkbRequest, 
+            List<DataLoaderService.TKBTemplateRow> dataRows,
+            List<Room> rooms, Set<Object> occupiedRooms) {
+        
+        int targetTotal = tkbRequest.getSotiet();
+        log.info("Processing subject: {} with {} periods", tkbRequest.getMa_mon(), targetTotal);
+
+        List<DataLoaderService.TKBTemplateRow> pool = dataRows.stream()
+                .filter(row -> toInt(row.getTotalPeriods()) == targetTotal)
+                .collect(Collectors.toList());
+
+        if (pool.isEmpty()) {
+            return TKBBatchItemResponse.builder()
+                    .input(tkbRequest)
+                    .rows(Collections.emptyList())
+                    .note("Không có Data cho " + targetTotal + " tiết")
+                    .build();
+        }
+
+        int classes = Math.max(1, toInt(tkbRequest.getSolop(), 1));
+        List<TKBRowResult> resultRows;
+        int startingSlotIdx;
+
+        if (targetTotal == 60) {
+            log.info("Using SPECIAL 60-period logic for {}", tkbRequest.getMa_mon());
+            startingSlotIdx = mapRegularSlotTo60PeriodSlot(sessionLastSlotIdx);
+            resultRows = process60PeriodSubject(tkbRequest, pool, rooms, occupiedRooms, startingSlotIdx);
+        } else {
+            log.info("Using REGULAR logic: {} classes for {}", classes, tkbRequest.getMa_mon());
+            startingSlotIdx = (sessionLastSlotIdx + 1) % ROTATING_SLOTS.size();
+            resultRows = processRegularSubject(tkbRequest, pool, rooms, occupiedRooms, startingSlotIdx, classes, targetTotal);
+        }
+
+        if (!resultRows.isEmpty()) {
+            int majorEndSlot = calculateMajorEndSlot(classes, targetTotal);
+            sessionLastSlotIdx = (startingSlotIdx + majorEndSlot) % ROTATING_SLOTS.size();
+        }
+
+        return TKBBatchItemResponse.builder()
+                .input(tkbRequest)
+                .rows(resultRows)
+                .build();
+    }
+
     /**
-     * Commit session occupied rooms to global (permanent storage)
-     * Called when user clicks "Thêm vào kết quả"
+     * Lưu dữ liệu phòng đã sử dụng từ session vào global storage
      */
     public void commitSessionToGlobal() {
         if (sessionOccupiedRooms.isEmpty()) {
@@ -217,33 +197,25 @@ public class TimetableSchedulingService {
             return;
         }
 
-        // Load current global
         Set<Object> globalOccupied = dataLoaderService.loadGlobalOccupiedRooms();
         int beforeCount = globalOccupied.size();
 
-        // Add session rooms to global
         globalOccupied.addAll(sessionOccupiedRooms);
         int afterCount = globalOccupied.size();
         int addedCount = afterCount - beforeCount;
 
-        // Save to JSON
         dataLoaderService.saveGlobalOccupiedRooms(globalOccupied);
-
-        // COMMIT sessionLastSlotIdx to permanent lastSlotIdx
         lastSlotIdx = sessionLastSlotIdx;
-
-        // SAVE lastSlotIdx to persistent storage (file)
         dataLoaderService.saveLastSlotIdx(lastSlotIdx);
 
         log.info("Committed {} new rooms to global. Total global rooms: {}", addedCount, afterCount);
         log.info("Committed and saved lastSlotIdx to file: {}", lastSlotIdx);
 
-        // Clear session after commit
         sessionOccupiedRooms.clear();
     }
 
     /**
-     * Calculate AH value (exact Python _row_AH logic)
+     * Tính tổng số tiết dạy trong một row
      */
     private int calculateAH(DataLoaderService.TKBTemplateRow row) {
         int L = row.getPeriodLength();
@@ -258,10 +230,9 @@ public class TimetableSchedulingService {
     }
 
     /**
-     * Normalize slots (exact Python _normalize_slots logic)
+     * Chuẩn hóa lịch tuần thành 18 tuần
      */
     private List<String> normalizeSlots(DataLoaderService.TKBTemplateRow row) {
-        // Convert week schedule to string format matching Python
         List<String> weeks = new ArrayList<>();
         List<Integer> weekSchedule = row.getWeekSchedule();
 
@@ -273,7 +244,6 @@ public class TimetableSchedulingService {
             }
         }
 
-        // Ensure exactly 18 weeks
         while (weeks.size() < 18) {
             weeks.add("");
         }
@@ -285,7 +255,7 @@ public class TimetableSchedulingService {
     }
 
     /**
-     * Emit row result (exact Python _emit_row logic) with room info
+     * Tạo một hàng kết quả thời khóa biểu
      */
     private TKBRowResult emitRow(int cls, TKBRequest payload, DataLoaderService.TKBTemplateRow row, int aiBefore,
             String roomCode, String maPhong) {
@@ -306,7 +276,7 @@ public class TimetableSchedulingService {
                 .thu(thu)
                 .tietBd(tietBd)
                 .L(L)
-                .phong(maPhong) // Ma phong (room ID) for display
+                .phong(maPhong)
                 .AH(AH)
                 .AI(aiBefore)
                 .AJ(aj)
@@ -319,7 +289,7 @@ public class TimetableSchedulingService {
     }
 
     /**
-     * Calculate major end slot (exact Python logic)
+     * Tính slot kết thúc của môn học
      */
     private int calculateMajorEndSlot(int classes, int targetTotal) {
         if (classes <= 0)
@@ -327,10 +297,8 @@ public class TimetableSchedulingService {
 
         int lastClassSlotIdx;
         if (targetTotal == 14) {
-            // 4 classes per slot
             lastClassSlotIdx = (classes - 1) / 4;
         } else {
-            // 2 classes per slot
             lastClassSlotIdx = (classes - 1) / 2;
         }
 
@@ -338,28 +306,16 @@ public class TimetableSchedulingService {
     }
 
     /**
-     * Map regular slot index to 60-period slot index
-     * When transitioning from regular subjects to 60-period subjects,
-     * we need to find the next available pair of consecutive days.
-     * 
-     * Regular slots: 12 individual day slots
-     * 60-period slots: 12 paired-day slots (3 day-pairs × 4 kips)
-     * 
-     * @param regularSlotIdx current slot index from regular subject scheduling
-     * @return appropriate starting slot index for 60-period subject
+     * Chuyển đổi slot index từ môn thường sang môn 60 tiết
      */
     private int mapRegularSlotTo60PeriodSlot(int regularSlotIdx) {
-        // Calculate which day-pair the regular slot belongs to (every 2 regular slots =
-        // 1 pair)
-        // Then move to the next pair and start at its first kip
-        int pairIndex = (regularSlotIdx / 2) + 1; // Next pair after current
-        int slot60Index = (pairIndex * 4) % ROTATING_SLOTS_60.size(); // First kip of that pair
+        int pairIndex = (regularSlotIdx / 2) + 1;
+        int slot60Index = (pairIndex * 4) % ROTATING_SLOTS_60.size();
         return slot60Index;
     }
 
     /**
-     * Process regular subjects (non-60-period) with standard logic
-     * Extracted from original simulateExcelFlowBatch loop
+     * Xử lý môn học thường (không phải 60 tiết)
      */
     private List<TKBRowResult> processRegularSubject(
             TKBRequest tkbRequest,
@@ -376,17 +332,13 @@ public class TimetableSchedulingService {
         log.info("Processing regular subject: {} classes", classes);
 
         for (int cls = 1; cls <= classes; cls++) {
-            // Room assignment: ONE room per class (Python strategy)
             String classRoomCode = null;
             String classRoomMaPhong = null;
 
-            // Calculate slot based on starting_slot_idx + class offset (exact Python logic)
             int slotIdx;
             if (targetTotal == 14) {
-                // 4 classes per slot for 14-period subjects
                 slotIdx = (startingSlotIdx + (cls - 1) / 4) % ROTATING_SLOTS.size();
             } else {
-                // 2 classes per slot for other subjects
                 slotIdx = (startingSlotIdx + (cls - 1) / 2) % ROTATING_SLOTS.size();
             }
 
@@ -397,7 +349,6 @@ public class TimetableSchedulingService {
             int guard = 0;
 
             while (ai > 0 && guard < 10000) {
-                // Find matching row (exact Python logic)
                 DataLoaderService.TKBTemplateRow row = null;
                 int attempts = 0;
 
@@ -415,7 +366,6 @@ public class TimetableSchedulingService {
                     attempts++;
                 }
 
-                // Fallback if no match found
                 if (row == null) {
                     row = pool.get(idx);
                     idx = (idx + 1) % pool.size();
@@ -427,58 +377,14 @@ public class TimetableSchedulingService {
                     continue;
                 }
 
-                // Pick room ONCE per class (on first valid session only)
                 if (classRoomCode == null) {
-                    Integer tietBd = row.getStartPeriod();
-                    Integer rowThu = row.getDayOfWeek();
-                    Integer rowKip = row.getKip();
-
-                    // Skip room assignment if tiet_bd = 12
-                    if (tietBd != null && tietBd != 12 && rowThu != null && rowKip != null) {
-                        // Calculate siso per class for capacity check
-                        Integer sisoPerClass;
-                        if (tkbRequest.getHe_dac_thu() != null && !tkbRequest.getHe_dac_thu().trim().isEmpty()) {
-                            // Special system: siso / solop
-                            sisoPerClass = tkbRequest.getSiso() / tkbRequest.getSolop();
-                        } else {
-                            // Regular system: use siso_mot_lop
-                            sisoPerClass = tkbRequest.getSiso_mot_lop();
-                        }
-
-                        // Call pickRoom
-                        RoomPickResult roomResult = roomService.pickRoom(
-                                rooms,
-                                sisoPerClass,
-                                occupiedRooms,
-                                rowThu,
-                                rowKip,
-                                tkbRequest.getSubject_type(),
-                                tkbRequest.getStudent_year(),
-                                tkbRequest.getHe_dac_thu(),
-                                null, // week_schedule can be added later
-                                tkbRequest.getNganh(), // NEW
-                                tkbRequest.getMa_mon() // NEW
-                        );
-
-                        if (roomResult.hasRoom()) {
-                            classRoomCode = roomResult.getRoomCode();
-                            classRoomMaPhong = roomResult.getMaPhong();
-
-                            log.info("Assigned room {} in building {} for subject {} (major: {}, preferred: {})",
-                                    classRoomCode, roomResult.getBuilding(),
-                                    tkbRequest.getMa_mon(), tkbRequest.getNganh(),
-                                    roomResult.isPreferredBuilding() ? "YES" : "NO");
-
-                            // Mark room as occupied in BOTH session and working set
-                            String occupationKey = classRoomCode + "|" + rowThu + "|" + rowKip;
-                            occupiedRooms.add(occupationKey); // Working set for this generation
-                            sessionOccupiedRooms.add(occupationKey); // Session storage (temporary)
-                        }
+                    RoomAssignment assignment = assignRoomForClass(tkbRequest, row, rooms, occupiedRooms);
+                    if (assignment != null) {
+                        classRoomCode = assignment.getRoomCode();
+                        classRoomMaPhong = assignment.getMaPhong();
                     }
                 }
 
-                // Create result row with room info (exact Python _emit_row logic)
-                // For rows with tiet_bd = 12, don't assign room
                 Integer currentTietBd = row.getStartPeriod();
                 String rowRoomCode = (currentTietBd != null && currentTietBd == 12) ? null : classRoomCode;
                 String rowRoomMaPhong = (currentTietBd != null && currentTietBd == 12) ? null : classRoomMaPhong;
@@ -486,7 +392,6 @@ public class TimetableSchedulingService {
                 TKBRowResult resultRow = emitRow(cls, tkbRequest, row, ai, rowRoomCode, rowRoomMaPhong);
                 resultRows.add(resultRow);
 
-                // Subtract AH and increment guard - this creates ONE row per iteration
                 ai -= ah;
                 guard++;
             }
@@ -501,9 +406,7 @@ public class TimetableSchedulingService {
     }
 
     /**
-     * Process 60-period subject with special paired-day logic
-     * Groups data by (thu, kip), pairs consecutive days with same kip
-     * Emits 4 rows per class (2 rows × 2 days)
+     * Xử lý môn 60 tiết với logic ghép cặp ngày liên tiếp
      */
     private List<TKBRowResult> process60PeriodSubject(
             TKBRequest tkbRequest,
@@ -514,35 +417,28 @@ public class TimetableSchedulingService {
 
         List<TKBRowResult> resultRows = new ArrayList<>();
 
-        // Calculate number of classes (exact Python logic)
         int classes = Math.max(1, toInt(tkbRequest.getSolop(), 1));
         log.info("Processing 60-period subject with {} classes", classes);
 
-        // Group data by (thu, kip)
         Map<String, List<DataLoaderService.TKBTemplateRow>> groups = pool.stream()
                 .collect(Collectors.groupingBy(row -> row.getDayOfWeek() + "_" + row.getKip()));
 
         log.info("Grouped 60-period data into {} groups", groups.size());
 
-        // Loop through all classes
         for (int cls = 1; cls <= classes; cls++) {
             log.info("Processing 60-period class {}/{}", cls, classes);
 
-            // Get rotating slot for this class
             int slotIdx = (startingSlotIdx + (cls - 1)) % ROTATING_SLOTS_60.size();
             DayPairSlot dayPairSlot = ROTATING_SLOTS_60.get(slotIdx);
 
-            // Get the specific kip for this slot
             Integer targetKip = dayPairSlot.getKip();
 
             log.info("Class {} using slot: days {}-{} with kip {}",
                     cls, dayPairSlot.getDay1(), dayPairSlot.getDay2(), targetKip);
 
-            // Assign ONE room for this class (both days)
             String classRoomCode = null;
             String classRoomMaPhong = null;
 
-            // Process each paired day with the SAME single kip
             for (Integer currentDay : dayPairSlot.getDays()) {
                 String groupKey = currentDay + "_" + targetKip;
                 List<DataLoaderService.TKBTemplateRow> groupRows = groups.get(groupKey);
@@ -554,59 +450,17 @@ public class TimetableSchedulingService {
 
                 log.info("Processing group {} with {} rows for class {}", groupKey, groupRows.size(), cls);
 
-                // Process all rows in this group (should be ~2 rows = 30 periods)
                 for (DataLoaderService.TKBTemplateRow row : groupRows) {
-                    // Pick room ONCE (on first valid row only)
                     if (classRoomCode == null) {
-                        Integer tietBd = row.getStartPeriod();
-                        Integer rowThu = row.getDayOfWeek();
-                        Integer rowKip = row.getKip();
-
-                        if (tietBd != null && tietBd != 12 && rowThu != null && rowKip != null) {
-                            Integer sisoPerClass;
-                            if (tkbRequest.getHe_dac_thu() != null && !tkbRequest.getHe_dac_thu().trim().isEmpty()) {
-                                sisoPerClass = tkbRequest.getSiso() / tkbRequest.getSolop();
-                            } else {
-                                sisoPerClass = tkbRequest.getSiso_mot_lop();
-                            }
-
-                            RoomPickResult roomResult = roomService.pickRoom(
-                                    rooms,
-                                    sisoPerClass,
-                                    occupiedRooms,
-                                    rowThu,
-                                    rowKip,
-                                    tkbRequest.getSubject_type(),
-                                    tkbRequest.getStudent_year(),
-                                    tkbRequest.getHe_dac_thu(),
-                                    null,
-                                    tkbRequest.getNganh(), // NEW
-                                    tkbRequest.getMa_mon() // NEW
-                            );
-
-                            if (roomResult.hasRoom()) {
-                                classRoomCode = roomResult.getRoomCode();
-                                classRoomMaPhong = roomResult.getMaPhong();
-
-                                log.info(
-                                        "Assigned room {} in building {} for subject {} class {} (major: {}, preferred: {})",
-                                        classRoomCode, roomResult.getBuilding(),
-                                        tkbRequest.getMa_mon(), cls, tkbRequest.getNganh(),
-                                        roomResult.isPreferredBuilding() ? "YES" : "NO");
-                            }
+                        RoomAssignment assignment = assignRoomForClass(tkbRequest, row, rooms, occupiedRooms);
+                        if (assignment != null) {
+                            classRoomCode = assignment.getRoomCode();
+                            classRoomMaPhong = assignment.getMaPhong();
+                            
+                            markRoomOccupiedForDays(classRoomMaPhong, dayPairSlot.getDays(), targetKip, occupiedRooms);
                         }
                     }
 
-                    // Mark room as occupied for BOTH days with the same kip
-                    if (classRoomCode != null) {
-                        for (Integer day : dayPairSlot.getDays()) {
-                            String occupationKey = classRoomCode + "|" + day + "|" + targetKip;
-                            occupiedRooms.add(occupationKey);
-                            sessionOccupiedRooms.add(occupationKey);
-                        }
-                    }
-
-                    // Emit row with current class number
                     int ah = calculateAH(row);
                     Integer currentTietBd = row.getStartPeriod();
                     String rowRoomCode = (currentTietBd != null && currentTietBd == 12) ? null : classRoomCode;
@@ -623,7 +477,7 @@ public class TimetableSchedulingService {
     }
 
     /**
-     * Safe integer conversion (exact Python _to_int logic)
+     * Chuyển đổi giá trị về kiểu integer an toàn
      */
     private int toInt(Object value, int defaultValue) {
         if (value == null)
@@ -646,7 +500,7 @@ public class TimetableSchedulingService {
     }
 
     /**
-     * Reset global state
+     * Reset trạng thái global
      */
     public void resetState() {
         lastSlotIdx = -1;
@@ -654,19 +508,15 @@ public class TimetableSchedulingService {
     }
 
     /**
-     * Reset both session and global occupied rooms
-     * Called when user clicks "Reset phòng đã sử dụng" button
+     * Reset danh sách phòng đã sử dụng
      */
     public void resetOccupiedRooms() {
-        // Clear session
         int sessionCount = sessionOccupiedRooms.size();
         sessionOccupiedRooms.clear();
 
-        // Clear global storage
         Set<Object> emptySet = new HashSet<>();
         dataLoaderService.saveGlobalOccupiedRooms(emptySet);
 
-        // Reset BOTH lastSlotIdx variables
         lastSlotIdx = -1;
         sessionLastSlotIdx = -1;
 
@@ -674,22 +524,19 @@ public class TimetableSchedulingService {
     }
 
     /**
-     * Reset lastSlotIdx về -1 và lưu vào file
-     * Called when user wants to reset slot index to start from beginning
+     * Reset chỉ số slot về -1
      */
     public void resetLastSlotIdx() {
-        // Reset trong memory
         lastSlotIdx = -1;
         sessionLastSlotIdx = -1;
 
-        // Lưu vào file
         dataLoaderService.saveLastSlotIdx(-1);
 
         log.info("Reset lastSlotIdx to -1 and saved to file");
     }
 
     /**
-     * Get current occupied rooms count (for display)
+     * Lấy thông tin số lượng phòng đã sử dụng
      */
     public Map<String, Integer> getOccupiedRoomsInfo() {
         Set<Object> globalRooms = dataLoaderService.loadGlobalOccupiedRooms();
@@ -702,7 +549,66 @@ public class TimetableSchedulingService {
         return info;
     }
 
-    // Helper method để convert RoomResponse sang Room Entity
+    /**
+     * Gán phòng học cho một lớp học
+     */
+    private RoomAssignment assignRoomForClass(TKBRequest tkbRequest, 
+            DataLoaderService.TKBTemplateRow row,
+            List<Room> rooms, Set<Object> occupiedRooms) {
+        
+        Integer tietBd = row.getStartPeriod();
+        Integer rowThu = row.getDayOfWeek();
+        Integer rowKip = row.getKip();
+
+        if (tietBd == null || tietBd == 12 || rowThu == null || rowKip == null) {
+            return null;
+        }
+
+        RoomPickResult roomResult = roomService.pickRoom(
+                rooms,
+                tkbRequest.getSiso_mot_lop(),
+                occupiedRooms,
+                rowThu,
+                rowKip,
+                tkbRequest.getSubject_type(),
+                tkbRequest.getStudent_year(),
+                tkbRequest.getHe_dac_thu(),
+                null,
+                tkbRequest.getNganh(),
+                tkbRequest.getMa_mon()
+        );
+
+        if (!roomResult.hasRoom()) {
+            return null;
+        }
+
+        log.info("Assigned room {} in building {} for subject {} (major: {}, preferred: {})",
+                roomResult.getRoomCode(), roomResult.getBuilding(),
+                tkbRequest.getMa_mon(), tkbRequest.getNganh(),
+                roomResult.isPreferredBuilding() ? "YES" : "NO");
+
+        String occupationKey = roomResult.getMaPhong() + "|" + rowThu + "|" + rowKip;
+        occupiedRooms.add(occupationKey);
+        sessionOccupiedRooms.add(occupationKey);
+
+        return new RoomAssignment(roomResult.getRoomCode(), roomResult.getMaPhong());
+    }
+
+    /**
+     * Đánh dấu phòng đã sử dụng cho nhiều ngày
+     */
+    private void markRoomOccupiedForDays(String maPhong, List<Integer> days, 
+            Integer kip, Set<Object> occupiedRooms) {
+        for (Integer day : days) {
+            String occupationKey = maPhong + "|" + day + "|" + kip;
+            occupiedRooms.add(occupationKey);
+            sessionOccupiedRooms.add(occupationKey);
+        }
+    }
+
+    /**
+     * Chuyển đổi RoomResponse sang Room Entity
+     */
     private Room convertToRoom(RoomResponse roomResponse) {
         return Room.builder()
                 .id(roomResponse.getId())
@@ -713,5 +619,26 @@ public class TimetableSchedulingService {
                 .status(roomResponse.getStatus())
                 .note(roomResponse.getNote())
                 .build();
+    }
+
+    /**
+     * Class lưu thông tin phòng được gán
+     */
+    private static class RoomAssignment {
+        private final String roomCode;
+        private final String maPhong;
+
+        public RoomAssignment(String roomCode, String maPhong) {
+            this.roomCode = roomCode;
+            this.maPhong = maPhong;
+        }
+
+        public String getRoomCode() {
+            return roomCode;
+        }
+
+        public String getMaPhong() {
+            return maPhong;
+        }
     }
 }

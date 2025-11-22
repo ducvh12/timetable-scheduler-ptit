@@ -47,10 +47,8 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
 
             for (Row row : sheet) {
                 if (row == null || row.getRowNum() == 0){
-//                    System.out.println("Skip row: " + row.getRowNum());
                     continue;
                 }
-//                System.out.println(row);
                 SubjectRequest subject = createSubjectFromRow(row, formatter, semester);
                 if (!subject.getSubjectCode().isBlank() && subject != null) subjects.add(subject);
             }

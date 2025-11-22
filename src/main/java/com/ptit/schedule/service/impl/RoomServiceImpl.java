@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.Normalizer;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -142,9 +143,6 @@ public class RoomServiceImpl implements RoomService {
 
         if (!notFoundRooms.isEmpty()) {
             log.warn("Could not find {} rooms: {}", notFoundRooms.size(), notFoundRooms);
-            // Optionally throw exception if strict mode is needed
-            // throw new RuntimeException("Không tìm thấy các phòng: " + String.join(", ",
-            // notFoundRooms));
         }
 
         log.info("Bulk updated {} rooms to status {}", updatedRooms.size(), request.getStatus());
@@ -199,8 +197,6 @@ public class RoomServiceImpl implements RoomService {
                 .collect(Collectors.toList());
     }
 
-    // Method để pick room cho TimetableSchedulingService (sử dụng Room Entity trực
-    // tiếp)
     public RoomPickResult pickRoom(List<Room> rooms, Integer sisoPerClass, Set<Object> occupied,
             Integer thu, Integer kip, String subjectType, String studentYear,
             String heDacThu, List<String> weekSchedule, String nganh, String maMon) {
@@ -247,8 +243,12 @@ public class RoomServiceImpl implements RoomService {
 
             // Check if room is occupied
             if (thu != null && kip != null) {
-                String traditionalKey = code + "|" + thu + "|" + kip;
-                boolean traditionalConflict = occupied.contains(traditionalKey);
+                String roomUniqueCode = buildRoomUniqueCode(r);
+                String occupationKey = buildOccupationKey(roomUniqueCode, thu, kip);
+                String legacyOccupationKey = buildLegacyOccupationKey(code, thu, kip);
+
+                boolean traditionalConflict = occupied.contains(occupationKey)
+                        || occupied.contains(legacyOccupationKey);
 
                 // Check week schedule conflict if provided
                 boolean weekConflict = false;
@@ -314,8 +314,9 @@ public class RoomServiceImpl implements RoomService {
                     "No suitable rooms found for subject: {}, major: {}, subjectType: {}, studentYear: {}, heDacThu: {}",
                     maMon, nganh, subjectType, studentYear, heDacThu);
 
-            // Fallback: try to find any available room (relax constraints)
-            log.info("Trying fallback logic with relaxed constraints...");
+            // Fallback: allow rooms that still satisfy suitability rules but ignore
+            // building preference
+            log.info("Trying fallback logic with SAME suitability constraints (no cross-group mixing)...");
             for (Room r : rooms) {
                 String code = r.getPhong();
                 if (code == null || code.trim().isEmpty()) {
@@ -324,8 +325,11 @@ public class RoomServiceImpl implements RoomService {
 
                 // Check if room is occupied
                 if (thu != null && kip != null) {
-                    String traditionalKey = code + "|" + thu + "|" + kip;
-                    boolean traditionalConflict = occupied.contains(traditionalKey);
+                    String roomUniqueCode = buildRoomUniqueCode(r);
+                    String occupationKey = buildOccupationKey(roomUniqueCode, thu, kip);
+                    String legacyOccupationKey = buildLegacyOccupationKey(code, thu, kip);
+                    boolean traditionalConflict = occupied.contains(occupationKey)
+                            || occupied.contains(legacyOccupationKey);
                     if (traditionalConflict) {
                         continue;
                     }
@@ -339,13 +343,18 @@ public class RoomServiceImpl implements RoomService {
                     continue;
                 }
 
-                // Accept any room that passes basic checks
+                // Still enforce suitability to avoid mixing special-purpose rooms
+                if (!isRoomSuitable(r, subjectType, studentYear, heDacThu)) {
+                    log.debug("Fallback: Room {} rejected by suitability check", r.getPhong());
+                    continue;
+                }
+
                 suitableRooms.add(r);
                 log.info("Fallback: Added room {} to suitable list", r.getPhong());
             }
 
             if (suitableRooms.isEmpty()) {
-                log.error("No rooms available even with fallback logic");
+                log.error("No rooms available even with fallback logic (respecting suitability)");
                 return RoomPickResult.builder()
                         .roomCode(null)
                         .roomId(null)
@@ -420,8 +429,10 @@ public class RoomServiceImpl implements RoomService {
             Set<Object> occupied, List<String> weekSchedule,
             Integer sisoPerClass) {
         // Check occupation
-        String key = room.getPhong() + "|" + thu + "|" + kip;
-        if (occupied.contains(key))
+        String roomUniqueCode = buildRoomUniqueCode(room);
+        String key = buildOccupationKey(roomUniqueCode, thu, kip);
+        String legacyKey = buildLegacyOccupationKey(room.getPhong(), thu, kip);
+        if (occupied.contains(key) || occupied.contains(legacyKey))
             return false;
 
         // Check capacity
@@ -442,8 +453,15 @@ public class RoomServiceImpl implements RoomService {
                 room.getPhong(), roomType, roomNote, subjectType, studentYear, heDacThu);
 
         // Special system room assignment rules (Hệ đặc thù)
-        if (heDacThu != null && !heDacThu.trim().isEmpty()) {
-            if ("CLC".equals(heDacThu)) {
+        String normalizedHeDacThu = normalizeSpecialSystem(heDacThu);
+        if (normalizedHeDacThu != null && !normalizedHeDacThu.isEmpty()) {
+            if ("chinhquy".equals(normalizedHeDacThu)) {
+                normalizedHeDacThu = null;
+            }
+        }
+
+        if (normalizedHeDacThu != null && !normalizedHeDacThu.isEmpty()) {
+            if ("clc".equals(normalizedHeDacThu)) {
                 // Handle CLC room assignment based on student year
                 if ("2024".equals(studentYear)) {
                     // CLC + Khóa 2024: Ưu tiên phòng có "Lớp CLC 2024" trong note
@@ -508,11 +526,38 @@ public class RoomServiceImpl implements RoomService {
             boolean isPreferred) {
         return RoomPickResult.builder()
                 .roomCode(room.getPhong())
-                .roomId(room.getPhong() + "-" + room.getDay())
+                .roomId(buildRoomUniqueCode(room))
                 .building(room.getDay())
                 .distanceScore(distanceScore)
                 .isPreferredBuilding(isPreferred)
                 .build();
+    }
+
+    private String buildRoomUniqueCode(Room room) {
+        return room.getPhong() + "-" + room.getDay();
+    }
+
+    private String buildOccupationKey(String roomUniqueCode, Integer thu, Integer kip) {
+        return roomUniqueCode + "|" + thu + "|" + kip;
+    }
+
+    private String buildLegacyOccupationKey(String roomCode, Integer thu, Integer kip) {
+        return roomCode + "|" + thu + "|" + kip;
+    }
+
+    private String normalizeSpecialSystem(String heDacThu) {
+        if (heDacThu == null) {
+            return null;
+        }
+        String trimmed = heDacThu.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        String normalized = Normalizer.normalize(trimmed, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("\\s+", "");
+        return normalized;
     }
 
     private int calculateDistance(String building1, String building2) {
