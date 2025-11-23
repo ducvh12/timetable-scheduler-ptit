@@ -36,7 +36,7 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
     private static final int COL_IS_COMMON = 24;
     
     @Override
-    public List<SubjectRequest> readSubjectsFromExcel(MultipartFile file, String semester) {
+    public List<SubjectRequest> readSubjectsFromExcel(MultipartFile file, String semesterName, String academicYear) {
         List<SubjectRequest> subjects = new ArrayList<>();
 
         try (InputStream is = file.getInputStream();
@@ -49,7 +49,7 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
                 if (row == null || row.getRowNum() == 0){
                     continue;
                 }
-                SubjectRequest subject = createSubjectFromRow(row, formatter, semester);
+                SubjectRequest subject = createSubjectFromRow(row, formatter, semesterName, academicYear);
                 if (!subject.getSubjectCode().isBlank() && subject != null) subjects.add(subject);
             }
 
@@ -69,7 +69,7 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
         }
     }
 
-    private SubjectRequest createSubjectFromRow(Row row, DataFormatter formatter, String semester) {
+    private SubjectRequest createSubjectFromRow(Row row, DataFormatter formatter, String semesterName, String academicYear) {
         try {
             String tmp = formatter.formatCellValue(row.getCell(4));
 
@@ -90,8 +90,9 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
                     .facultyId(formatter.formatCellValue(row.getCell(COL_FACULTY_ID)))
                     .department(formatter.formatCellValue(row.getCell(COL_DEPARTMENT)))                // P// R
                     .examFormat(formatter.formatCellValue(row.getCell(COL_EXAM_FORMAT)))
-                    .semester(semester)// S
                     .isCommon(formatter.formatCellValue(row.getCell(COL_IS_COMMON)).equalsIgnoreCase("chung"))
+                    .semesterName(semesterName)
+                    .academicYear(academicYear)
                     .build();
 
             if(tmp != null && !tmp.isBlank()){
@@ -106,55 +107,5 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
             log.error("Error parsing row {}: {}", e.getMessage());
             return null;
         }
-    }
-
-
-    @Override
-    public List<String> validateExcelData(List<SubjectRequest> subjects) {
-        List<String> errors = new ArrayList<>();
-
-        for (int i = 0; i < subjects.size(); i++) {
-            SubjectRequest subject = subjects.get(i);
-            int rowNumber = i + 2; // +2 vì bỏ qua header và index bắt đầu từ 0
-
-            // Validate required fields
-            if (subject.getSubjectCode() == null || subject.getSubjectCode().trim().isEmpty()) {
-                errors.add("Dòng " + rowNumber + ": Subject ID không được để trống");
-            }
-
-            if (subject.getSubjectName() == null || subject.getSubjectName().trim().isEmpty()) {
-                errors.add("Dòng " + rowNumber + ": Subject Name không được để trống");
-            }
-
-            if (subject.getStudentsPerClass() == null || subject.getStudentsPerClass() <= 0) {
-                errors.add("Dòng " + rowNumber + ": Students Per Class phải lớn hơn 0");
-            }
-
-            if (subject.getNumberOfClasses() == null || subject.getNumberOfClasses() <= 0) {
-                errors.add("Dòng " + rowNumber + ": Number of Classes phải lớn hơn 0");
-            }
-
-            if (subject.getCredits() == null || subject.getCredits() <= 0) {
-                errors.add("Dòng " + rowNumber + ": Credits phải lớn hơn 0");
-            }
-
-            if (subject.getFacultyId() == null || subject.getFacultyId().trim().isEmpty()) {
-                errors.add("Dòng " + rowNumber + ": Faculty ID không được để trống");
-            }
-
-            if (subject.getMajorId() == null || subject.getMajorId().trim().isEmpty()) {
-                errors.add("Dòng " + rowNumber + ": Major ID không được để trống");
-            }
-
-            if (subject.getMajorName() == null || subject.getMajorName().trim().isEmpty()) {
-                errors.add("Dòng " + rowNumber + ": Major Name không được để trống");
-            }
-
-            if (subject.getClassYear() == null || subject.getClassYear().trim().isEmpty()) {
-                errors.add("Dòng " + rowNumber + ": Class Year không được để trống");
-            }
-        }
-
-        return errors;
     }
 }

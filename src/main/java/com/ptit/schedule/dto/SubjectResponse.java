@@ -20,6 +20,7 @@ public class SubjectResponse {
     private String examFormat;
     private Long majorId;
     private String majorName;
+    private String semesterName;
     
     public static SubjectResponse fromEntity(Subject subject) {
         SubjectResponse response = new SubjectResponse();
@@ -37,6 +38,12 @@ public class SubjectResponse {
         response.setExamFormat(subject.getExamFormat());
         response.setMajorId(subject.getMajor().getId());
         response.setMajorName(subject.getMajor().getMajorName());
+        
+        // Set semester name if exists
+        if (subject.getSemester() != null) {
+            response.setSemesterName(subject.getSemester().getSemesterName());
+        }
+        
         return response;
     }
 }

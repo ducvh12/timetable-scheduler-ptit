@@ -23,6 +23,7 @@ public interface SubjectService {
         int size, 
         String sortBy, 
         String sortDir,
+        String academicYear,
         String semester,
         String classYear,
         String majorCode,
@@ -50,15 +51,21 @@ public interface SubjectService {
     // Xóa subject theo ID
     void deleteSubject(Long id);
 
-    // Xóa subjects theo semester
-    int deleteSubjectsBySemester(String semester);
+    // Xóa subjects theo semesterName
+    int deleteSubjectsBySemesterName(String semesterName);
 
-    // Xóa tất cả subjects theo semester
-    int deleteAllSubjectsBySemester(String semester);
+    // Xóa subjects theo semesterName và academicYear
+    int deleteSubjectsBySemesterNameAndAcademicYear(String semesterName, String academicYear);
 
     // Lấy tất cả program types (distinct)
     List<String> getAllProgramTypes();
 
+    // Lấy program types theo semester và academic year
+    List<String> getProgramTypesBySemesterAndAcademicYear(String semesterName, String academicYear);
+
     // Lấy tất cả class years (distinct)
     List<String> getAllClassYears();
+
+    // Lấy class years theo semester, academic year và program type
+    List<String> getClassYearsBySemesterAndAcademicYearAndProgramType(String semesterName, String academicYear, String programType);
 }

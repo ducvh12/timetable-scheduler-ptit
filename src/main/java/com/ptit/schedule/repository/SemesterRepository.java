@@ -20,6 +20,7 @@ public interface SemesterRepository extends JpaRepository<Semester, Long> {
      * Tìm semester theo tên học kỳ
      */
     Optional<Semester> findBySemesterName(String semesterName);
+
     
     /**
      * Tìm semester theo năm học

@@ -58,8 +58,9 @@ public class Subject {
     @JoinColumn(name = "major_id")
     private Major major;
 
-    @Column(name = "semester", nullable = true)
-    private String semester;
+    @ManyToOne
+    @JoinColumn(name = "semester_id")
+    private Semester semester;
 
     @Column(name = "is_common")
     private Boolean isCommon;

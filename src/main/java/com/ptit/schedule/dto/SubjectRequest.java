@@ -84,8 +84,11 @@ public class SubjectRequest {
     @NotNull(message = "Number of students is required")
     private Integer numberOfStudents;
 
-    @NotNull(message = "Semester is required")
-    private String semester;
+    @NotBlank(message = "Semester name is required")
+    private String semesterName;
+
+    @NotBlank(message = "Academic year is required")
+    private String academicYear;
 
     private Boolean isCommon;
 }
