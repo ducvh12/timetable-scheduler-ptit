@@ -60,11 +60,15 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     )
     FROM Subject s
     JOIN s.major m
-    WHERE m.classYear = :classYear
+    WHERE s.semester.semesterName = :semesterName
+      AND s.semester.academicYear = :academicYear
+      AND m.classYear = :classYear
       AND s.programType = :programType
       AND s.isCommon = false
     """)
     List<SubjectMajorDTO> findSubjectsWithMajorInfoByProgramType(
+            @Param("semesterName") String semesterName,
+            @Param("academicYear") String academicYear,
             @Param("classYear") String classYear,
             @Param("programType") String programType);
 
@@ -85,18 +89,24 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     )
     FROM Subject s
     JOIN s.major m
-    WHERE m.classYear = :classYear
+    WHERE s.semester.semesterName = :semesterName
+      AND s.semester.academicYear = :academicYear
+      AND m.classYear = :classYear
       AND s.programType = :programType
       AND m.majorCode IN :majorCodes
       AND s.isCommon = false
 """)
     List<SubjectMajorDTO> findSubjectsWithMajorInfoByMajorCodes(
+            @Param("semesterName") String semesterName,
+            @Param("academicYear") String academicYear,
             @Param("classYear") String classYear,
             @Param("programType") String programType,
             @Param("majorCodes") List<String> majorCodes);
 
 
-
+    /**
+     * Lấy tất cả subjects chung theo semester và academic year
+     */
     @Query("""
     SELECT new com.ptit.schedule.dto.SubjectMajorDTO(
          s.subjectCode,
@@ -113,12 +123,17 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
      )
     FROM Subject s
     JOIN s.major m
-    WHERE s.isCommon = true
+    WHERE s.semester.semesterName = :semesterName
+      AND s.semester.academicYear = :academicYear
+      AND s.isCommon = true
     GROUP BY s.subjectCode, s.subjectName, m.majorCode, m.classYear,
              s.theoryHours, s.exerciseHours, s.labHours,
              s.projectHours, s.selfStudyHours, s.studentsPerClass
 """)
-    List<SubjectMajorDTO> findCommonSubjects();
+    List<SubjectMajorDTO> findCommonSubjects(
+        @Param("semesterName") String semesterName,
+        @Param("academicYear") String academicYear
+    );
 
     /**
      * Lấy tất cả subjects với pagination

@@ -120,27 +120,40 @@ public class SubjectServiceImpl implements SubjectService {
     }
 
     @Override
-    public List<SubjectMajorDTO> getSubjectAndMajorCodeByClassYear(String classYear, String programType, List<String> majorCodes) {
+    public List<SubjectMajorDTO> getSubjectAndMajorCodeByClassYear(
+            String semesterName,
+            String academicYear,
+            String classYear,
+            String programType,
+            List<String> majorCodes) {
         for (String majorCode : majorCodes) {
             System.out.println("majorCode : " + majorCode);
         }
-        List<SubjectMajorDTO> subjectMajorDTOList =  subjectRepository.findSubjectsWithMajorInfoByMajorCodes(classYear, programType, majorCodes);
+        List<SubjectMajorDTO> subjectMajorDTOList = subjectRepository.findSubjectsWithMajorInfoByMajorCodes(
+            semesterName, academicYear, classYear, programType, majorCodes
+        );
         if(programType.equals("Đặc thù")){
-            subjectMajorDTOList.addAll(subjectRepository.findSubjectsWithMajorInfoByMajorCodes(classYear, "CLC", majorCodes));
+            subjectMajorDTOList.addAll(subjectRepository.findSubjectsWithMajorInfoByMajorCodes(
+                semesterName, academicYear, classYear, "CLC", majorCodes
+            ));
         }
         return subjectMajorDTOList;
     }
 
 
     @Override
-    public List<Set<String>> groupMajorsBySharedSubjects(String classYear, String programType) {
-        // Lấy danh sách môn theo năm học (lọc chính quy, loại môn chung)
+    public List<Set<String>> groupMajorsBySharedSubjects(
+            String semesterName,
+            String academicYear,
+            String classYear,
+            String programType) {
+        // Lấy danh sách môn theo semester, academic year, class year và program type
         List<SubjectMajorDTO> subjects = subjectRepository
-                .findSubjectsWithMajorInfoByProgramType(classYear, programType);
+                .findSubjectsWithMajorInfoByProgramType(semesterName, academicYear, classYear, programType);
         if(programType.equals("Đặc thù")){
 
             List<SubjectMajorDTO> appendSubjects = subjectRepository
-                    .findSubjectsWithMajorInfoByProgramType(classYear, "CLC");
+                    .findSubjectsWithMajorInfoByProgramType(semesterName, academicYear, classYear, "CLC");
             subjects.addAll(appendSubjects);
             return separateMajorsByClassYear(subjects);
         }
@@ -165,8 +178,8 @@ public class SubjectServiceImpl implements SubjectService {
     }
 
     @Override
-    public List<SubjectMajorDTO> getCommonSubjects() {
-        List<SubjectMajorDTO> subjectMajorDTOs = subjectRepository.findCommonSubjects();
+    public List<SubjectMajorDTO> getCommonSubjects(String semesterName, String academicYear) {
+        List<SubjectMajorDTO> subjectMajorDTOs = subjectRepository.findCommonSubjects(semesterName, academicYear);
         if(subjectMajorDTOs.isEmpty()){
             System.out.println("Không tìm thấy môn học chung nào!");
             return subjectMajorDTOs;

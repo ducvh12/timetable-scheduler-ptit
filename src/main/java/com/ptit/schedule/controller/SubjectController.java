@@ -271,11 +271,13 @@ public class SubjectController {
 
     @Operation(
             summary = "Lấy danh sách môn học và ngành theo khóa",
-            description = "Truyền classYear và programType để lấy danh sách môn học và ngành tương ứng"
+            description = "Truyền semesterName, academicYear, classYear, programType và majorCodes để lấy danh sách môn học và ngành tương ứng"
     )
     @GetMapping("/majors")
     public ResponseEntity<ApiResponse<List<SubjectMajorDTO>>> getSubjectsAndMajorByMajorCodes(
-            @Nullable @RequestParam String classYear,
+            @RequestParam String semesterName,
+            @RequestParam String academicYear,
+            @RequestParam String classYear,
             @RequestParam String programType,
             @Nullable @RequestParam List<String> majorCodes) {
         try {
@@ -283,9 +285,11 @@ public class SubjectController {
 //                System.out.println(majorCode);
 //            }
             List<SubjectMajorDTO> subjects =
-                    subjectService.getSubjectAndMajorCodeByClassYear(classYear, programType, majorCodes);
+                    subjectService.getSubjectAndMajorCodeByClassYear(
+                        semesterName, academicYear, classYear, programType, majorCodes
+                    );
             if(programType.equals("Chung")){
-                subjects = subjectService.getCommonSubjects();
+                subjects = subjectService.getCommonSubjects(semesterName, academicYear);
             }
             ApiResponse<List<SubjectMajorDTO>> response =
                     ApiResponse.success(subjects, "Lấy danh sách môn học và ngành theo khóa thành công");
@@ -299,16 +303,22 @@ public class SubjectController {
 
     @Operation(
             summary = "Lấy danh sách nhóm ngành học chung môn",
-            description = "Truyền classYear và programType để lấy danh sách nhóm ngành có môn học chung"
+            description = "Truyền semesterName, academicYear, classYear và programType để lấy danh sách nhóm ngành có môn học chung"
     )
     @GetMapping("/group-majors")
     public ResponseEntity<ApiResponse<List<Set<String>>>> getGroupedMajors(
+            @RequestParam String semesterName,
+            @RequestParam String academicYear,
             @RequestParam String classYear,
             @RequestParam String programType) {
         try {
+            System.out.println("semesterName: " + semesterName);
+            System.out.println("academicYear: " + academicYear);
             System.out.println("classYear: " + classYear);
             System.out.println("programType: " + programType);
-            List<Set<String>> groupedMajors = subjectService.groupMajorsBySharedSubjects(classYear, programType);
+            List<Set<String>> groupedMajors = subjectService.groupMajorsBySharedSubjects(
+                semesterName, academicYear, classYear, programType
+            );
 
             if (groupedMajors == null || groupedMajors.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -324,14 +334,16 @@ public class SubjectController {
 
 
     @Operation(
-            summary = "Lấy danh sách môn chung ",
-            description = "Trả về các môn học chung như Anh văn, Chính trị, Kỹ năng mềm."
+            summary = "Lấy danh sách môn chung",
+            description = "Trả về các môn học chung như Anh văn, Chính trị, Kỹ năng mềm theo semester và academic year"
     )
     @GetMapping("/common-subjects")
     public ResponseEntity<ApiResponse<List<SubjectMajorDTO>>> getCommonSubjects(
+            @RequestParam String semesterName,
+            @RequestParam String academicYear
           ) {
         try {
-            List<SubjectMajorDTO> commonSubjects = subjectService.getCommonSubjects();
+            List<SubjectMajorDTO> commonSubjects = subjectService.getCommonSubjects(semesterName, academicYear);
 
             if (commonSubjects == null || commonSubjects.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
