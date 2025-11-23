@@ -3,6 +3,8 @@ package com.ptit.schedule.service.impl;
 
 import com.ptit.schedule.dto.*;
 import com.ptit.schedule.entity.*;
+import com.ptit.schedule.exception.InvalidDataException;
+import com.ptit.schedule.exception.ResourceNotFoundException;
 import com.ptit.schedule.repository.*;
 import com.ptit.schedule.service.SubjectService;
 import lombok.RequiredArgsConstructor;
@@ -241,21 +243,36 @@ public class SubjectServiceImpl implements SubjectService {
     @Override
     @Transactional
     public SubjectResponse createSubject(SubjectRequest request) {
-        // Kiểm tra major có tồn tại không, nếu không thì tạo mới
-        Major major = getOrCreateMajor(request);
-
-        Optional<Subject> exitsingSubject = subjectRepository.findBySubjectCodeAndMajorCode(request.getSubjectCode(),
-                major.getMajorCode());
-        if (exitsingSubject.isPresent()) {
-//            System.out.println("Subject with id " + request.getSubjectId() + " already exists. Updating instead.");
-            return updateSubject(exitsingSubject.get().getId(), request);
-
+        if (request.getSemesterName() == null || request.getSemesterName().trim().isEmpty()) {
+            throw new InvalidDataException("Tên học kỳ không được để trống");
         }
-        
+
         // Tìm semester theo tên và năm học
         Semester semester = semesterRepository.findBySemesterNameAndAcademicYear(request.getSemesterName(), request.getAcademicYear())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy học kỳ với tên: " + request.getSemesterName()));
+
+        // Kiểm tra major có tồn tại không, nếu không thì tạo mới
+        Major major = getOrCreateMajor(request);
+
+        // Kiểm tra xem subject đã tồn tại với các tiêu chí: subjectCode, majorCode, semesterName, academicYear, classYear
+        Optional<Subject> existingSubject = subjectRepository.findBySubjectCodeAndMajorCodeAndSemesterAndClassYear(
+                request.getSubjectCode(),
+                major.getMajorCode(),
+                request.getSemesterName(),
+                request.getAcademicYear(),
+                request.getClassYear()
+        );
         
+        if (existingSubject.isPresent()) {
+            System.out.println("Subject '" + request.getSubjectCode() + 
+                "' (Major: " + major.getMajorCode() + 
+                ", Semester: " + request.getSemesterName() + 
+                ", Year: " + request.getAcademicYear() + 
+                ", Class: " + request.getClassYear() + 
+                ") already exists. Updating instead.");
+            return updateSubject(existingSubject.get().getId(), request);
+        }
+
         // Tạo subject mới
         Subject subject = Subject.builder()
                 .subjectCode(request.getSubjectCode().trim())
@@ -297,16 +314,16 @@ public class SubjectServiceImpl implements SubjectService {
         
         // Nếu không tìm thấy major với ID và class year cụ thể, tạo major mới
         if (request.getMajorId() == null || request.getMajorId().trim().isEmpty()) {
-            throw new RuntimeException("Major ID is required to create new major");
+            throw new InvalidDataException("Mã ngành không được để trống");
         }
         
         if (request.getFacultyId() == null || request.getFacultyId().trim().isEmpty()) {
-            throw new RuntimeException("Faculty ID is required to create new major");
+            throw new InvalidDataException("Mã khoa không được để trống");
         }
         
         // Kiểm tra faculty có tồn tại không
         Faculty faculty = facultyRepository.findById(request.getFacultyId())
-                .orElseThrow(() -> new RuntimeException("Faculty not found with id: " + request.getFacultyId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy mã khoa: " + request.getFacultyId()));
         
         Major newMajor = Major.builder()
                 .majorCode(request.getMajorId())
@@ -325,14 +342,17 @@ public class SubjectServiceImpl implements SubjectService {
     @Override
     public SubjectResponse updateSubject(Long id, SubjectRequest request) {
         Subject subject = subjectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Subject not found with id: " + id));
-        System.out.println("Updating subject with id " + id);
+                .orElseThrow(() -> new ResourceNotFoundException("môn học", "mã", id));
+//        System.out.println("Updating subject with id " + id);
         // Kiểm tra major có tồn tại không, nếu không thì tạo mới
         Major major = getOrCreateMajor(request);
-        
-        // Tìm semester theo tên
-        Semester semester = semesterRepository.findBySemesterName(request.getSemesterName())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy học kỳ với tên: " + request.getSemesterName()));
+
+        // Validate semester
+        if (request.getSemesterName() != null && !request.getSemesterName().trim().isEmpty()) {
+            Semester semester = semesterRepository.findBySemesterName(request.getSemesterName())
+                    .orElseThrow(() -> new ResourceNotFoundException("học kỳ", "tên", request.getSemesterName()));
+            subject.setSemester(semester);
+        }
         
         // Cập nhật thông tin subject
         subject.setSubjectCode(request.getSubjectCode().trim());
@@ -349,9 +369,9 @@ public class SubjectServiceImpl implements SubjectService {
         subject.setExamFormat(request.getExamFormat().trim());
         subject.setMajor(major);
         subject.setProgramType(request.getProgramType().trim());
-        subject.setSemester(semester);
         subject.setIsCommon(request.getIsCommon());
         Subject savedSubject = subjectRepository.save(subject);
+
         return SubjectResponse.fromEntity(savedSubject);
     }
     
@@ -373,12 +393,12 @@ public class SubjectServiceImpl implements SubjectService {
     @Transactional
     public int deleteSubjectsBySemesterName(String semesterName) {
         if (semesterName == null || semesterName.trim().isEmpty()) {
-            throw new RuntimeException("Tên học kỳ không được để trống");
+            throw new InvalidDataException("Tên học kỳ không được để trống");
         }
-        
+
         List<Subject> subjects = subjectRepository.findBySemesterName(semesterName);
         if (subjects.isEmpty()) {
-            throw new RuntimeException("Không tìm thấy môn học nào với học kỳ: " + semesterName);
+            throw new ResourceNotFoundException("môn học nào trong học kỳ", "tên", semesterName);
         }
         
         int count = subjects.size();
@@ -393,17 +413,16 @@ public class SubjectServiceImpl implements SubjectService {
     @Transactional
     public int deleteSubjectsBySemesterNameAndAcademicYear(String semesterName, String academicYear) {
         if (semesterName == null || semesterName.trim().isEmpty()) {
-            throw new RuntimeException("Tên học kỳ không được để trống");
+            throw new InvalidDataException("Tên học kỳ không được để trống");
         }
         if (academicYear == null || academicYear.trim().isEmpty()) {
-            throw new RuntimeException("Năm học không được để trống");
+            throw new InvalidDataException("Năm học không được để trống");
         }
-        
+
         List<Subject> subjects = subjectRepository.findBySemesterNameAndAcademicYear(semesterName, academicYear);
         if (subjects.isEmpty()) {
-            throw new RuntimeException(
-                String.format("Không tìm thấy môn học nào với học kỳ '%s' và năm học '%s'", 
-                    semesterName, academicYear)
+            throw new ResourceNotFoundException(
+                    "môn học nào trong học kỳ năm học", semesterName, academicYear
             );
         }
         

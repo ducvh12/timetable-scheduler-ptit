@@ -1,111 +1,201 @@
 package com.ptit.schedule.service.impl;
 
+import com.ptit.schedule.dto.ExcelImportResult;
 import com.ptit.schedule.dto.SubjectRequest;
+import com.ptit.schedule.exception.FileProcessingException;
 import com.ptit.schedule.service.ExcelReaderService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Slf4j
 @Service
-public class ExcelReaderServiceImpl implements ExcelReaderService {
-    // Column indices (0-based)
-    private static final int COL_SUBJECT_CODE = 0; // A
-    private static final int COL_CLASS_YEAR = 1;   // B
-    private static final int COL_MAJOR_ID = 2;     // C
-    private static final int COL_PROGRAM_TYPE = 4; // D
-    private static final int COL_NUMBER_OF_STUDENTS = 6; // E
-    private static final int COL_NUMBER_OF_CLASSES = 7;  // F
-    private static final int COL_SUBJECT_NAME = 9; // H
-    private static final int COL_CREDITS = 10;     // I/J
-    private static final int COL_THEORY_HOURS = 12; // K
-    private static final int COL_EXERCISE_HOURS = 13; // L
-    private static final int COL_PROJECT_HOURS = 14; // M
-    private static final int COL_LAB_HOURS = 15;   // N
-    private static final int COL_SELF_STUDY_HOURS = 16; // O
-    private static final int COL_FACULTY_ID = 18;  // S? (as used before)
-    private static final int COL_DEPARTMENT = 19;  // T? (as used before)
-    private static final int COL_EXAM_FORMAT = 22; // V? (as used before)
-    private static final int COL_IS_COMMON = 24;
-    
+public class ExcelReaderServiceImpl extends BaseExcelReaderService implements ExcelReaderService {
+
+    // Column indices (0-based) - Documented clearly
+    private static final int COL_SUBJECT_CODE = 0;        // A - Mã môn học
+    private static final int COL_CLASS_YEAR = 1;          // B - Khóa
+    private static final int COL_MAJOR_ID = 2;            // C - Mã ngành
+    private static final int COL_PROGRAM_TYPE = 4;        // E - Loại hệ
+    private static final int COL_NUMBER_OF_STUDENTS = 6;  // G - Số SV
+    private static final int COL_NUMBER_OF_CLASSES = 7;   // H - Số lớp
+    private static final int COL_SUBJECT_NAME = 9;        // J - Tên môn
+    private static final int COL_CREDITS = 10;            // K - Số tín chỉ
+    private static final int COL_THEORY_HOURS = 12;       // M - Giờ lý thuyết
+    private static final int COL_EXERCISE_HOURS = 13;     // N - Giờ bài tập
+    private static final int COL_PROJECT_HOURS = 14;      // O - Giờ đồ án
+    private static final int COL_LAB_HOURS = 15;          // P - Giờ thực hành
+    private static final int COL_SELF_STUDY_HOURS = 16;   // Q - Giờ tự học
+    private static final int COL_FACULTY_ID = 18;         // S - Mã khoa
+    private static final int COL_DEPARTMENT = 19;         // T - Bộ môn
+    private static final int COL_EXAM_FORMAT = 22;        // W - Hình thức thi
+    private static final int COL_IS_COMMON = 24;          // Y - Môn chung
+
+    private static final int MIN_COLUMNS = 25;            // Minimum required columns
+    private static final int HEADER_ROW = 0;              // First row is header
+
     @Override
+    @Deprecated
     public List<SubjectRequest> readSubjectsFromExcel(MultipartFile file, String semesterName, String academicYear) {
-        List<SubjectRequest> subjects = new ArrayList<>();
+        ExcelImportResult result = readAndValidateSubjectsFromExcel(file, semesterName, academicYear);
+        return result.getValidSubjects();
+    }
 
-        try (InputStream is = file.getInputStream();
-             Workbook workbook = new XSSFWorkbook(is)) {
+    @Override
+    public ExcelImportResult readAndValidateSubjectsFromExcel(MultipartFile file, String semesterName, String academicYear) {
+        List<SubjectRequest> allSubjects = new ArrayList<>();
+        ExcelImportResult result = ExcelImportResult.builder()
+                .successCount(0)
+                .skippedCount(0)
+                .totalRows(0)
+                .warnings(new ArrayList<>())
+                .validSubjects(new ArrayList<>())
+                .build();
 
-            Sheet sheet = workbook.getSheetAt(0); // Lấy sheet đầu tiên
+        try (Workbook workbook = openWorkbook(file)) {
+            Sheet sheet = workbook.getSheetAt(0);
             DataFormatter formatter = new DataFormatter();
 
-            for (Row row : sheet) {
-                if (row == null || row.getRowNum() == 0){
+            // Validate header row
+            Row headerRow = sheet.getRow(HEADER_ROW);
+            validateColumnCount(headerRow, MIN_COLUMNS, "Chương trình đào tạo");
+
+            int totalRows = sheet.getLastRowNum();
+            result.setTotalRows(totalRows);
+            
+            log.info("Reading subjects from Excel. Total rows: {}", totalRows);
+
+            // Read data rows (skip header)
+            for (int i = HEADER_ROW + 1; i <= totalRows; i++) {
+                Row row = sheet.getRow(i);
+
+                // Skip empty rows
+                if (isRowEmpty(row)) {
                     continue;
                 }
-                SubjectRequest subject = createSubjectFromRow(row, formatter, semesterName, academicYear);
-                if (!subject.getSubjectCode().isBlank() && subject != null) subjects.add(subject);
+
+                try {
+                    SubjectRequest subject = createSubjectFromRow(row, formatter, semesterName, academicYear, i);
+
+                    // Validate required fields
+                    if (subject != null && isValidSubject(subject)) {
+                        allSubjects.add(subject);
+                    } else {
+                        log.warn("Skipped invalid subject at row {}", i + 1);
+                        result.addWarning(String.format("Dòng %d: Dữ liệu không hợp lệ (thiếu thông tin bắt buộc)", i + 1));
+                    }
+                } catch (Exception e) {
+                    log.error("Error reading row {}: {}", i + 1, e.getMessage());
+                    result.addWarning(String.format("Dòng %d: %s", i + 1, e.getMessage()));
+                }
             }
+
+            log.info("Successfully parsed {} subjects from Excel", allSubjects.size());
+
+            // Validate and filter duplicates
+            validateAndFilterDuplicates(allSubjects, result);
 
         } catch (IOException e) {
             log.error("Error reading Excel file", e);
-            throw new RuntimeException("Không thể đọc file Excel: " + e.getMessage());
+            throw new FileProcessingException("Lỗi đọc file Excel: " + e.getMessage(), e);
         }
-        
-        return subjects;
+
+        return result;
     }
 
-    private static int parseIntSafe(String value) {
-        try {
-            return (value == null || value.isBlank()) ? 0 : Integer.parseInt(value.trim());
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
+    private SubjectRequest createSubjectFromRow(Row row, DataFormatter formatter,
+                                                String semesterName, String academicYear, int rowIndex) {
 
-    private SubjectRequest createSubjectFromRow(Row row, DataFormatter formatter, String semesterName, String academicYear) {
-        try {
-            String tmp = formatter.formatCellValue(row.getCell(4));
+        String subjectCode = getCellValue(row, COL_SUBJECT_CODE, formatter);
 
-            SubjectRequest subject = SubjectRequest.builder()
-                    .subjectCode(formatter.formatCellValue(row.getCell(COL_SUBJECT_CODE)))   // A
-                    .classYear(formatter.formatCellValue(row.getCell(COL_CLASS_YEAR)))         // B
-                    .majorId(formatter.formatCellValue(row.getCell(COL_MAJOR_ID)))        // C
-                    .programType(formatter.formatCellValue(row.getCell(COL_PROGRAM_TYPE))) // D
-                    .numberOfStudents(parseIntSafe(formatter.formatCellValue(row.getCell(COL_NUMBER_OF_STUDENTS)))) // E
-                    .numberOfClasses(parseIntSafe(formatter.formatCellValue(row.getCell(COL_NUMBER_OF_CLASSES)))) // F
-                    .subjectName(formatter.formatCellValue(row.getCell(COL_SUBJECT_NAME)))  // H
-                    .credits(parseIntSafe(formatter.formatCellValue(row.getCell(COL_CREDITS))))          // I// J
-                    .theoryHours(parseIntSafe(formatter.formatCellValue(row.getCell(COL_THEORY_HOURS))))     // K
-                    .exerciseHours(parseIntSafe(formatter.formatCellValue(row.getCell(COL_EXERCISE_HOURS))))   // L
-                    .projectHours(parseIntSafe(formatter.formatCellValue(row.getCell(COL_PROJECT_HOURS))))    // M
-                    .labHours(parseIntSafe(formatter.formatCellValue(row.getCell(COL_LAB_HOURS))))        // N
-                    .selfStudyHours(parseIntSafe(formatter.formatCellValue(row.getCell(COL_SELF_STUDY_HOURS))))  // O
-                    .facultyId(formatter.formatCellValue(row.getCell(COL_FACULTY_ID)))
-                    .department(formatter.formatCellValue(row.getCell(COL_DEPARTMENT)))                // P// R
-                    .examFormat(formatter.formatCellValue(row.getCell(COL_EXAM_FORMAT)))
-                    .isCommon(formatter.formatCellValue(row.getCell(COL_IS_COMMON)).equalsIgnoreCase("chung"))
-                    .semesterName(semesterName)
-                    .academicYear(academicYear)
-                    .build();
-
-            if(tmp != null && !tmp.isBlank()){
-//                System.out.println(subject.getClassYear() + " - " + subject.getMajorId() + " - " + tmp);
-                subject.setProgramType(tmp);
-            } else {
-                subject.setProgramType("Chính quy");
-            }
-            return subject;
-
-        } catch (Exception e) {
-            log.error("Error parsing row {}: {}", e.getMessage());
+        // Skip if no subject code
+        if (subjectCode.isBlank()) {
             return null;
         }
+
+        String programType = getCellValue(row, COL_PROGRAM_TYPE, formatter);
+        if (programType.isBlank()) {
+            programType = "Chính quy"; // Default value
+        }
+
+        return SubjectRequest.builder()
+                .subjectCode(subjectCode)
+                .subjectName(getCellValue(row, COL_SUBJECT_NAME, formatter))
+                .classYear(getCellValue(row, COL_CLASS_YEAR, formatter))
+                .majorId(getCellValue(row, COL_MAJOR_ID, formatter))
+                .programType(programType)
+                .numberOfStudents(parseIntSafe(getCellValue(row, COL_NUMBER_OF_STUDENTS, formatter)))
+                .numberOfClasses(parseIntSafe(getCellValue(row, COL_NUMBER_OF_CLASSES, formatter)))
+                .credits(parseIntSafe(getCellValue(row, COL_CREDITS, formatter)))
+                .theoryHours(parseIntSafe(getCellValue(row, COL_THEORY_HOURS, formatter)))
+                .exerciseHours(parseIntSafe(getCellValue(row, COL_EXERCISE_HOURS, formatter)))
+                .projectHours(parseIntSafe(getCellValue(row, COL_PROJECT_HOURS, formatter)))
+                .labHours(parseIntSafe(getCellValue(row, COL_LAB_HOURS, formatter)))
+                .selfStudyHours(parseIntSafe(getCellValue(row, COL_SELF_STUDY_HOURS, formatter)))
+                .facultyId(getCellValue(row, COL_FACULTY_ID, formatter))
+                .department(getCellValue(row, COL_DEPARTMENT, formatter))
+                .examFormat(getCellValue(row, COL_EXAM_FORMAT, formatter))
+                .isCommon(getCellValue(row, COL_IS_COMMON, formatter).equalsIgnoreCase("chung"))
+                .semesterName(semesterName)
+                .academicYear(academicYear)
+                .build();
+    }
+
+    private boolean isValidSubject(SubjectRequest subject) {
+        return subject.getSubjectCode() != null && !subject.getSubjectCode().isBlank() &&
+                subject.getSubjectName() != null && !subject.getSubjectName().isBlank() &&
+                subject.getCredits() != null && subject.getCredits() > 0;
+    }
+
+    /**
+     * Validate duplicates and filter them out, adding warnings to result
+     * Keep only the first occurrence of each subject
+     * Unique key: subjectCode + majorId + classYear + semesterName + academicYear
+     */
+    private void validateAndFilterDuplicates(List<SubjectRequest> allSubjects, ExcelImportResult result) {
+        Map<String, Integer> firstSeen = new HashMap<>();
+        List<SubjectRequest> validSubjects = new ArrayList<>();
+        
+        for (int i = 0; i < allSubjects.size(); i++) {
+            SubjectRequest subject = allSubjects.get(i);
+            
+            // Create unique key: subjectCode + majorId + classYear + semesterName + academicYear
+            // This matches the DB uniqueness constraint
+            String key = subject.getSubjectCode() 
+                    + "-" + subject.getMajorId() 
+                    + "-" + subject.getClassYear()
+                    + "-" + subject.getSemesterName()
+                    + "-" + subject.getAcademicYear();
+
+            if (firstSeen.containsKey(key)) {
+                // Duplicate found - add warning and skip
+                result.addWarning(
+                    String.format("Môn '%s' (Ngành: %s, Khóa: %s, HK: %s, Năm: %s) bị trùng: dòng %d và dòng %d - Bỏ qua dòng %d",
+                        subject.getSubjectCode(),
+                        subject.getMajorId(),
+                        subject.getClassYear(),
+                        subject.getSemesterName(),
+                        subject.getAcademicYear(),
+                        firstSeen.get(key) + 2,  // +2 because: +1 for 0-indexed, +1 for header row
+                        i + 2,                    // +2 for same reason
+                        i + 2)                    // Skipped row
+                );
+                result.setSkippedCount(result.getSkippedCount() + 1);
+            } else {
+                // First occurrence - keep it
+                firstSeen.put(key, i);
+                validSubjects.add(subject);
+            }
+        }
+        
+        result.setValidSubjects(validSubjects);
+        result.setSuccessCount(validSubjects.size());
+        
+        log.info("Validation complete: {} valid subjects, {} duplicates skipped", 
+                validSubjects.size(), result.getSkippedCount());
     }
 }

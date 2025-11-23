@@ -215,56 +215,73 @@ public class SubjectController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Upload thành công")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "File không hợp lệ hoặc dữ liệu lỗi")
     @PostMapping("/upload-excel")
-    public ResponseEntity<ApiResponse<Integer>> uploadExcelSubjects(@RequestParam("file") MultipartFile file,
-                                                                     @RequestParam("semester") String semester) {
+    public ResponseEntity<ApiResponse<ExcelImportResult>> uploadExcelSubjects(@RequestParam("file") MultipartFile file,
+                                                                               @RequestParam("semester") String semester) {
         try {
             // Validate data
             if (file.isEmpty()) {
-                ApiResponse<Integer> response = ApiResponse.badRequest("File không được để trống");
+                ApiResponse<ExcelImportResult> response = ApiResponse.badRequest("File không được để trống");
                 return ResponseEntity.badRequest().body(response);
             }
             if (semester.isEmpty()) {
-                ApiResponse<Integer> response = ApiResponse.badRequest("Học kỳ không được để trống");
+                ApiResponse<ExcelImportResult> response = ApiResponse.badRequest("Học kỳ không được để trống");
                 return ResponseEntity.badRequest().body(response);
             }
             
             if (!Objects.requireNonNull(file.getOriginalFilename()).toLowerCase().endsWith(".xlsx")) {
-                ApiResponse<Integer> response = ApiResponse.badRequest("Chỉ chấp nhận file Excel (.xlsx)");
+                ApiResponse<ExcelImportResult> response = ApiResponse.badRequest("Chỉ chấp nhận file Excel (.xlsx)");
                 return ResponseEntity.badRequest().body(response);
             }
 
-            // Covert semester into semester name and academic year;
+            // Covert semester into semester name and academic year
             Pair<String, String> splitData = AcademicYearUtils.splitSemesterAndYear(semester);
             String semesterName = splitData.getLeft();
             String academicYear = splitData.getRight();
             
-            // Đọc dữ liệu từ Excel
-            List<SubjectRequest> subjectRequests = excelReaderService.readSubjectsFromExcel(file, semesterName, academicYear);
+            // Đọc và validate dữ liệu từ Excel (sử dụng method mới)
+            ExcelImportResult result = excelReaderService.readAndValidateSubjectsFromExcel(file, semesterName, academicYear);
             
-            if (subjectRequests.isEmpty()) {
-                ApiResponse<Integer> response = ApiResponse.badRequest("File Excel không có dữ liệu hợp lệ");
+            if (result.getValidSubjects().isEmpty()) {
+                ApiResponse<ExcelImportResult> response = ApiResponse.badRequest("File Excel không có dữ liệu hợp lệ");
                 return ResponseEntity.badRequest().body(response);
             }
 
-            // Tạo subjects
-            int successCount = 0;
+            // Import các môn học hợp lệ vào database
+            int importedCount = 0;
+            List<String> importErrors = new ArrayList<>();
             
-            for (int i = 0; i < subjectRequests.size(); i++) {
+            for (int i = 0; i < result.getValidSubjects().size(); i++) {
                 try {
-                    subjectService.createSubject(subjectRequests.get(i));
-                    successCount++;
+                    subjectService.createSubject(result.getValidSubjects().get(i));
+                    importedCount++;
                 } catch (RuntimeException e) {
-                    throw new RuntimeException("Dòng " + (i + 2) + ": " + e.getMessage());
+                    importErrors.add("Lỗi khi lưu môn '" + 
+                        result.getValidSubjects().get(i).getSubjectCode() + "': " + e.getMessage());
                 }
             }
             
-            ApiResponse<Integer> response = ApiResponse.success(
-                successCount,
-                "Tạo thành công " + successCount + " môn học từ file Excel");
+            // Cập nhật result với số lượng thực tế đã import
+            result.setSuccessCount(importedCount);
+            
+            // Thêm các lỗi khi import vào warnings
+            if (!importErrors.isEmpty()) {
+                importErrors.forEach(result::addWarning);
+            }
+            
+            // Build message
+            String message = String.format("Đã import thành công %d môn học", importedCount);
+            if (result.getSkippedCount() > 0) {
+                message += String.format(". Đã bỏ qua %d môn học bị trùng lặp", result.getSkippedCount());
+            }
+            if (!importErrors.isEmpty()) {
+                message += String.format(". Có %d lỗi khi lưu vào database", importErrors.size());
+            }
+            
+            ApiResponse<ExcelImportResult> response = ApiResponse.success(result, message);
             return ResponseEntity.ok(response);
             
         } catch (RuntimeException e) {
-            ApiResponse<Integer> response = ApiResponse.badRequest("Lỗi xử lý file: " + e.getMessage());
+            ApiResponse<ExcelImportResult> response = ApiResponse.badRequest("Lỗi xử lý file: " + e.getMessage());
             return ResponseEntity.badRequest().body(response);
         }
     }

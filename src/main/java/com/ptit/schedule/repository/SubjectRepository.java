@@ -20,9 +20,27 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     // Tìm tất cả subject theo major
     List<Subject> findByMajorId(Integer majorId);
 
-    @Query("SELECT s FROM Subject s WHERE s.subjectCode = :subjectCode AND s.major.majorCode = :majorCode")
-    Optional<Subject> findBySubjectCodeAndMajorCode(@Param("subjectCode") String subjectCode,
-                                                    @Param("majorCode") String majorCode);
+    /**
+     * Tìm subject theo subjectCode, majorCode, semesterName, academicYear và classYear
+     * Dùng để check duplicate khi import Excel hoặc tạo subject mới
+     */
+    @Query("""
+        SELECT s FROM Subject s 
+        JOIN s.major m 
+        JOIN s.semester sem 
+        WHERE s.subjectCode = :subjectCode 
+          AND m.majorCode = :majorCode 
+          AND sem.semesterName = :semesterName 
+          AND sem.academicYear = :academicYear 
+          AND m.classYear = :classYear
+        """)
+    Optional<Subject> findBySubjectCodeAndMajorCodeAndSemesterAndClassYear(
+        @Param("subjectCode") String subjectCode,
+        @Param("majorCode") String majorCode,
+        @Param("semesterName") String semesterName,
+        @Param("academicYear") String academicYear,
+        @Param("classYear") String classYear
+    );
 
     @Query("""
     SELECT new com.ptit.schedule.dto.SubjectMajorDTO(
