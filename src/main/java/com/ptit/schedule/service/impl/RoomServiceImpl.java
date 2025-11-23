@@ -201,8 +201,16 @@ public class RoomServiceImpl implements RoomService {
             Integer thu, Integer kip, String subjectType, String studentYear,
             String heDacThu, List<String> weekSchedule, String nganh, String maMon) {
 
+        // DEBUG: Log parameters for common subjects
+        log.info("\n=== ROOM PICK DEBUG START ===");
+        log.info("Subject: {} ({})", maMon, nganh);
+        log.info("Parameters: subjectType={}, studentYear={}, heDacThu={}", subjectType, studentYear, heDacThu);
+        log.info("Time: thu={}, kip={}, sisoPerClass={}", thu, kip, sisoPerClass);
+        log.info("Total rooms available: {}", rooms.size());
+
         // Skip room assignment for rows with tiet_bd = 12 (no room needed)
         if (thu == null || kip == null) {
+            log.info("Skipping room assignment: thu={}, kip={}", thu, kip);
             return RoomPickResult.builder()
                     .roomCode(null)
                     .roomId(null)
@@ -231,6 +239,13 @@ public class RoomServiceImpl implements RoomService {
 
         log.info("Picking room for subject: {}, major: {}, preferred buildings: {}",
                 maMon, nganh, finalPreferredBuildings);
+
+        // Special debug logging for common subjects
+        if ("Chung".equals(nganh)) {
+            log.warn(
+                    "DEBUG: Processing COMMON SUBJECT - subject: {}, major: {}, subjectType: {}, studentYear: {}, heDacThu: {}",
+                    maMon, nganh, subjectType, studentYear, heDacThu);
+        }
 
         // 3. Filter rooms by constraints
         List<Room> suitableRooms = new ArrayList<>();
@@ -289,17 +304,32 @@ public class RoomServiceImpl implements RoomService {
             }
 
             // Check room suitability (subject type, student year, special system)
-            if (isRoomSuitable(r, subjectType, studentYear, heDacThu)) {
+            boolean isSuitable = isRoomSuitable(r, subjectType, studentYear, heDacThu);
+            if (isSuitable) {
                 suitableRooms.add(r);
                 log.debug("Room {} passed suitability check", r.getPhong());
             } else {
-                log.debug(
-                        "Room {} failed suitability check - type: {}, note: {}, subjectType: {}, studentYear: {}, heDacThu: {}",
-                        r.getPhong(), r.getType(), r.getNote(), subjectType, studentYear, heDacThu);
+                // Enhanced debug logging for common subjects
+                if ("Chung".equals(nganh)) {
+                    log.warn(
+                            "DEBUG: Common subject - Room {} FAILED suitability check - type: {}, note: {}, subjectType: {}, studentYear: {}, heDacThu: {}",
+                            r.getPhong(), r.getType(), r.getNote(), subjectType, studentYear, heDacThu);
+                } else {
+                    log.debug(
+                            "Room {} failed suitability check - type: {}, note: {}, subjectType: {}, studentYear: {}, heDacThu: {}",
+                            r.getPhong(), r.getType(), r.getNote(), subjectType, studentYear, heDacThu);
+                }
             }
         }
 
         log.info("Found {} suitable rooms out of {} total rooms", suitableRooms.size(), rooms.size());
+
+        // Special debug logging for common subjects when no suitable rooms found
+        if ("Chung".equals(nganh) && suitableRooms.isEmpty()) {
+            log.error(
+                    "DEBUG: NO SUITABLE ROOMS FOUND FOR COMMON SUBJECT: {} - subjectType: {}, studentYear: {}, heDacThu: {}, sisoPerClass: {}",
+                    maMon, subjectType, studentYear, heDacThu, sisoPerClass);
+        }
 
         // Verify all suitable rooms have sufficient capacity
         for (Room room : suitableRooms) {
@@ -382,6 +412,7 @@ public class RoomServiceImpl implements RoomService {
         log.info("Selected room {} in building {} for subject {} (major: {}, preferred: {}, distance: {})",
                 selectedRoom.getPhong(), selectedRoom.getDay(), maMon, nganh,
                 isPreferredBuilding ? "YES" : "NO", distanceToPreferred);
+        log.info("=== ROOM PICK DEBUG END - SUCCESS ===");
 
         return createRoomPickResult(selectedRoom, distanceToPreferred, isPreferredBuilding);
     }
@@ -452,12 +483,41 @@ public class RoomServiceImpl implements RoomService {
         log.debug("Checking room suitability: phong={}, type={}, note={}, subjectType={}, studentYear={}, heDacThu={}",
                 room.getPhong(), roomType, roomNote, subjectType, studentYear, heDacThu);
 
+        // SPECIAL HANDLING FOR COMMON SUBJECTS (môn chung)
+        // Common subjects should be able to use general rooms without strict
+        // restrictions
+        if (subjectType == null || subjectType.isEmpty() || "general".equals(subjectType)) {
+            // For common subjects, allow general rooms and avoid special-purpose rooms
+            if ("general".equals(roomType)) {
+                log.debug("Common subject - accepting general room: {}", room.getPhong());
+                return true;
+            }
+            // Avoid special purpose rooms for common subjects
+            if (Arrays.asList("ngoc_truc", "english_class", "clc").contains(roomType) ||
+                    roomNote.contains("nt") || roomNote.contains("phòng học ta") || roomNote.contains("lớp clc")) {
+                log.debug("Common subject - rejecting special room: {} (type: {}, note: {})",
+                        room.getPhong(), roomType, roomNote);
+                return false;
+            }
+            // Accept khoa_2024 rooms for common subjects if no other option
+            if ("khoa_2024".equals(roomType)) {
+                log.debug("Common subject - accepting khoa_2024 room: {}", room.getPhong());
+                return true;
+            }
+        }
+
         // Special system room assignment rules (Hệ đặc thù)
         String normalizedHeDacThu = normalizeSpecialSystem(heDacThu);
         if (normalizedHeDacThu != null && !normalizedHeDacThu.isEmpty()) {
             if ("chinhquy".equals(normalizedHeDacThu)) {
                 normalizedHeDacThu = null;
             }
+        }
+
+        // Debug log for room suitability check
+        if (subjectType == null || subjectType.isEmpty()) {
+            log.info("Room suitability check for COMMON SUBJECT - room: {}, type: {}, studentYear: {}, heDacThu: {}",
+                    room.getPhong(), roomType, studentYear, heDacThu);
         }
 
         if (normalizedHeDacThu != null && !normalizedHeDacThu.isEmpty()) {

@@ -134,13 +134,73 @@ public class TKBController {
         }
     }
 
+    @Operation(summary = "Debug common subject room assignment", description = "Test room assignment for common subjects")
+    @PostMapping("/debug-common-subject")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> debugCommonSubject() {
+        try {
+            log.info("=== DEBUG COMMON SUBJECT ROOM ASSIGNMENT ===");
+
+            // Create a test TKBRequest for a common subject
+            TKBRequest commonSubjectRequest = TKBRequest.builder()
+                    .ma_mon("SKD1102")
+                    .ten_mon("Kỹ năng làm việc nhóm")
+                    .sotiet(30)
+                    .siso(100)
+                    .siso_mot_lop(50)
+                    .solop(2)
+                    .nganh("Chung")
+                    .subject_type("general") // Test with general type for common subjects
+                    .student_year("2024")
+                    .he_dac_thu("") // empty for common subjects
+                    .build();
+
+            log.info("Testing with common subject request: {}", commonSubjectRequest);
+
+            // Convert to batch request
+            TKBBatchRequest batchRequest = TKBBatchRequest.builder()
+                    .items(Collections.singletonList(commonSubjectRequest))
+                    .build();
+
+            // Generate TKB
+            TKBBatchResponse response = timetableSchedulingService.simulateExcelFlowBatch(batchRequest);
+
+            boolean hasRoomAssigned = response.getItems().stream()
+                    .flatMap(item -> item.getRows().stream())
+                    .anyMatch(row -> row.getPhong() != null);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("request", commonSubjectRequest);
+            result.put("response", response);
+            result.put("has_room_assigned", hasRoomAssigned);
+            result.put("total_rows", response.getTotalRows());
+
+            log.info("=== DEBUG COMMON SUBJECT RESULT ===");
+            log.info("Total rows generated: {}", response.getTotalRows());
+            log.info("Has room assigned: {}", hasRoomAssigned);
+
+            return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                    .success(true)
+                    .message("Debug common subject completed")
+                    .data(result)
+                    .build());
+
+        } catch (Exception e) {
+            log.error("Error debugging common subject: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.<Map<String, Object>>builder()
+                            .success(false)
+                            .message("Lỗi debug common subject: " + e.getMessage())
+                            .build());
+        }
+    }
+
     @Operation(summary = "Import data lịch mẫu", description = "Import file Excel chứa dữ liệu lịch mẫu và ghi đè vào real.json")
     @PostMapping("/import-data")
     public ResponseEntity<ApiResponse<Map<String, Object>>> importDataTemplate(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
         try {
             log.info("Importing data template file: {}", file.getOriginalFilename());
-            
+
             // Validate file
             if (file.isEmpty()) {
                 return ResponseEntity.badRequest()
