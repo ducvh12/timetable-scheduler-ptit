@@ -71,9 +71,9 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
                 List<ScheduleEntryWithTimeSlot> entriesAtTime = timeEntry.getValue();
 
                 if (entriesAtTime.size() > 1) {
-                    for (int i = 0; i < entriesAtTime.size(); i++) {
-                        ScheduleEntryWithTimeSlot entry = entriesAtTime.get(i);
-                    }
+//                    for (int i = 0; i < entriesAtTime.size(); i++) {
+//                        ScheduleEntryWithTimeSlot entry = entriesAtTime.get(i);
+//                    }
 
                     List<ScheduleEntryWithTimeSlot> uniqueEntries = removeDuplicateEntriesWithTimeSlot(entriesAtTime);
 
