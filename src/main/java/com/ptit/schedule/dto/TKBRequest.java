@@ -42,6 +42,10 @@ public class TKBRequest {
     
     private String he_dac_thu;  // he_dac_thu - "CLC", "CTTT", etc.
     
+    private String academic_year;  // Năm học (VD: "2023-2024")
+    
+    private String semester;  // Học kỳ (VD: "1", "2", "hè")
+    
     // Getters for backward compatibility
     public String getSubjectId() { return ma_mon; }
     public String getSubjectName() { return ten_mon; }
@@ -53,5 +57,7 @@ public class TKBRequest {
     public String getSubjectType() { return subject_type; }
     public String getStudentYear() { return student_year; }
     public String getSpecialSystem() { return he_dac_thu; }
+    public String getAcademicYear() { return academic_year; }
+    public String getSemester() { return semester; }
 }
 

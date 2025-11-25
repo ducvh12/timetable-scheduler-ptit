@@ -9,6 +9,7 @@ public interface ScheduleService {
     List<Schedule> getSchedulesBySubjectId(String subjectId);
     List<Schedule> getSchedulesByMajor(String major);
     List<Schedule> getSchedulesByStudentYear(String studentYear);
+    List<Schedule> getSchedulesByUserId(Long userId);
     void deleteScheduleById(Long id);
     void deleteAllSchedules();
 }
