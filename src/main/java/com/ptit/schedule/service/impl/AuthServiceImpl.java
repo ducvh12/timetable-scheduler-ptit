@@ -5,6 +5,7 @@ import com.ptit.schedule.dto.LoginRequest;
 import com.ptit.schedule.dto.RegisterRequest;
 import com.ptit.schedule.dto.UserResponse;
 import com.ptit.schedule.entity.User;
+import com.ptit.schedule.exception.DuplicateResourceException;
 import com.ptit.schedule.exception.InvalidDataException;
 import com.ptit.schedule.exception.ResourceNotFoundException;
 import com.ptit.schedule.repository.UserRepository;
@@ -34,14 +35,14 @@ public class AuthServiceImpl implements AuthService {
     
     @Override
     public AuthResponse register(RegisterRequest request) {
-        // Check if username already exists
+        // Check if username already exists - 409 Conflict
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new InvalidDataException("Username đã tồn tại");
+            throw new DuplicateResourceException("Username đã tồn tại");
         }
         
-        // Check if email already exists
+        // Check if email already exists - 409 Conflict
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new InvalidDataException("Email đã tồn tại");
+            throw new DuplicateResourceException("Email đã tồn tại");
         }
         
         // Create new user

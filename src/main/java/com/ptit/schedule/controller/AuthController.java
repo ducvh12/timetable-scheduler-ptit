@@ -25,16 +25,12 @@ public class AuthController {
     @Operation(summary = "Đăng ký user mới", description = "Tạo tài khoản mới với username, email và password")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Đăng ký thành công")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Dữ liệu không hợp lệ")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Username hoặc Email đã tồn tại")
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
-        try {
-            AuthResponse response = authService.register(request);
-            ApiResponse<AuthResponse> apiResponse = ApiResponse.success(response, "Đăng ký thành công");
-            return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
-        } catch (RuntimeException e) {
-            ApiResponse<AuthResponse> apiResponse = ApiResponse.badRequest(e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(apiResponse);
-        }
+        AuthResponse response = authService.register(request);
+        ApiResponse<AuthResponse> apiResponse = ApiResponse.success(response, "Đăng ký thành công");
+        return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
     }
     
     @Operation(summary = "Đăng nhập", description = "Đăng nhập với username hoặc email và password, trả về JWT token")
