@@ -51,7 +51,7 @@ public class AuthServiceImpl implements AuthService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName())
                 .role(request.getRole())
-                .enabled(true)
+                .enabled(false)
                 .build();
         
         User savedUser = userRepository.save(user);
@@ -74,8 +74,10 @@ public class AuthServiceImpl implements AuthService {
         // Tìm user theo username hoặc email
         User user = userRepository.findByUsername(request.getUsername())
                 .or(() -> userRepository.findByEmail(request.getUsername()))
-                .orElseThrow(() -> new ResourceNotFoundException("User không tồn tại"));
-        
+                .orElseThrow(() -> new ResourceNotFoundException("Tài khoản không tồn tại"));
+        if(!user.getEnabled()){
+            throw new InvalidDataException("Tài khoản chưa đươc kích hoạt");
+        }
         // Authenticate user với email (vì UserDetailsService load theo email)
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
