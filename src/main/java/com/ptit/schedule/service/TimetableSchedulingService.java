@@ -281,10 +281,12 @@ public class TimetableSchedulingService {
                 .AI(aiBefore)
                 .AJ(aj)
                 .N(keyN)
-                .oToAg(weeks)
+                .O_to_AG(weeks)
                 .studentYear(payload.getStudent_year())
                 .heDacThu(payload.getHe_dac_thu())
                 .nganh(payload.getNganh())
+                .academicYear(payload.getAcademicYear())
+                .semester(payload.getSemester())
                 .build();
     }
 

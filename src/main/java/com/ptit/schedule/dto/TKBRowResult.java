@@ -31,11 +31,13 @@ public class TKBRowResult {
     private Integer AI; // AI value (remaining periods)
     private Integer AJ; // AJ value (AI - AH)
     private String N; // Key N from template
-    @JsonProperty("O_to_AG")
-    private List<String> oToAg; // Week schedule (18 weeks)
+    private List<String> O_to_AG; // Week schedule (18 weeks)
     @JsonProperty("student_year")
     private String studentYear; // Student year (e.g., "2024", "2022")
     @JsonProperty("he_dac_thu")
     private String heDacThu; // Special system (e.g., "CLC", "CTTT")
     private String nganh; // Major
+    @JsonProperty("academic_year")
+    private String academicYear; // Academic year (e.g., "2024-2025")
+    private String semester; // Semester (e.g., "1", "2", "3")
 }

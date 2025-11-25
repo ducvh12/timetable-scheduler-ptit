@@ -40,6 +40,11 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
+    public List<Schedule> getSchedulesByUserId(Long userId) {
+        return scheduleRepository.findByUserIdOrderByIdAsc(userId);
+    }
+
+    @Override
     public void deleteScheduleById(Long id) {
         scheduleRepository.deleteById(id);
     }

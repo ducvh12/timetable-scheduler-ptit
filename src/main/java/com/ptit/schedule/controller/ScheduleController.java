@@ -1,34 +1,60 @@
 package com.ptit.schedule.controller;
 
 import com.ptit.schedule.entity.Schedule;
+import com.ptit.schedule.entity.User;
+import com.ptit.schedule.exception.ResourceNotFoundException;
 import com.ptit.schedule.service.ScheduleService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/schedules")
+@RequiredArgsConstructor
 public class ScheduleController {
 
-    @Autowired
-    private ScheduleService scheduleService;
+    private final ScheduleService scheduleService;
 
     @PostMapping("/save-batch")
     public ResponseEntity<String> saveBatch(@RequestBody List<Schedule> schedules) {
-        scheduleService.saveAll(schedules);
-        return ResponseEntity.ok("Đã lưu TKB vào database!");
+        try {
+            // Get current logged-in user from JWT token
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            User currentUser = (User) authentication.getPrincipal();
+            
+            // Set user for all schedules
+            schedules.forEach(schedule -> schedule.setUser(currentUser));
+            
+            scheduleService.saveAll(schedules);
+            return ResponseEntity.ok("Đã lưu TKB vào database!");
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error: " + e.getMessage());
+        }
     }
 
     @GetMapping
     public ResponseEntity<?> getAllSchedules() {
         try {
-            List<Schedule> schedules = scheduleService.getAllSchedules();
+            // Get current logged-in user from JWT token
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            User currentUser = (User) authentication.getPrincipal();
+            
+            // Get schedules of current user only
+            List<Schedule> schedules = scheduleService.getSchedulesByUserId(currentUser.getId());
             return ResponseEntity.ok(schedules);
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(500).body("Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error: " + e.getMessage());
         }
     }
 
