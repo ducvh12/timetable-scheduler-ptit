@@ -2,9 +2,9 @@ package com.ptit.schedule.service;
 
 import com.ptit.schedule.dto.*;
 import com.ptit.schedule.entity.Room;
+import com.ptit.schedule.exception.InvalidDataException;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
@@ -16,7 +16,6 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class TimetableSchedulingService {
 
     private final DataLoaderService dataLoaderService;
@@ -56,65 +55,45 @@ public class TimetableSchedulingService {
      */
     @PostConstruct
     public void init() {
-        log.info("Initializing TimetableSchedulingService...");
         lastSlotIdx = dataLoaderService.loadLastSlotIdx();
         sessionLastSlotIdx = lastSlotIdx;
-        log.info("Loaded lastSlotIdx from file: {}", lastSlotIdx);
     }
 
     /**
      * Tạo thời khóa biểu cho danh sách môn học
      */
     public TKBBatchResponse simulateExcelFlowBatch(TKBBatchRequest request) {
-        try {
-            List<DataLoaderService.TKBTemplateRow> dataRows = dataLoaderService.loadTemplateData();
-            if (dataRows.isEmpty()) {
-                return buildEmptyResponse("Template data empty or not exists");
-            }
-
-            List<Room> rooms = loadRooms();
-            Set<Object> occupiedRooms = initializeOccupiedRooms();
-            
-            List<TKBBatchItemResponse> itemsOut = new ArrayList<>();
-            int totalRows = 0;
-            int totalClasses = 0;
-            
-            sessionLastSlotIdx = lastSlotIdx;
-            List<TKBRequest> sortedItems = sortSubjectsByPeriods(request.getItems());
-            
-            log.info("Processing {} subjects in original order (from frontend processingOrder)", sortedItems.size());
-
-            for (TKBRequest tkbRequest : sortedItems) {
-                TKBBatchItemResponse itemResponse = processSubject(tkbRequest, dataRows, rooms, occupiedRooms);
-                itemsOut.add(itemResponse);
-                
-                if (!itemResponse.getRows().isEmpty()) {
-                    totalRows += itemResponse.getRows().size();
-                    totalClasses++;
-                }
-            }
-
-            log.info("Generated TKB using {} rooms (temporary, not saved yet)", sessionOccupiedRooms.size());
-            log.info("Session lastSlotIdx: {} (temporary, not committed yet)", sessionLastSlotIdx);
-
-            return TKBBatchResponse.builder()
-                    .items(itemsOut)
-                    .totalRows(totalRows)
-                    .totalClasses(totalClasses)
-                    .lastSlotIdx(sessionLastSlotIdx)
-                    .occupiedRoomsCount(sessionOccupiedRooms.size())
-                    .build();
-
-        } catch (Exception e) {
-            log.error("Error in simulateExcelFlowBatch: {}", e.getMessage(), e);
-            return buildEmptyResponse(e.getClass().getSimpleName() + ": " + e.getMessage());
+        List<DataLoaderService.TKBTemplateRow> dataRows = dataLoaderService.loadTemplateData();
+        if (dataRows.isEmpty()) {
+            throw new InvalidDataException("Template data empty or not exists");
         }
-    }
 
-    private TKBBatchResponse buildEmptyResponse(String errorMessage) {
+        List<Room> rooms = loadRooms();
+        Set<Object> occupiedRooms = initializeOccupiedRooms();
+        
+        List<TKBBatchItemResponse> itemsOut = new ArrayList<>();
+        int totalRows = 0;
+        int totalClasses = 0;
+        
+        sessionLastSlotIdx = lastSlotIdx;
+        List<TKBRequest> sortedItems = sortSubjectsByPeriods(request.getItems());
+
+        for (TKBRequest tkbRequest : sortedItems) {
+            TKBBatchItemResponse itemResponse = processSubject(tkbRequest, dataRows, rooms, occupiedRooms);
+            itemsOut.add(itemResponse);
+            
+            if (!itemResponse.getRows().isEmpty()) {
+                totalRows += itemResponse.getRows().size();
+                totalClasses++;
+            }
+        }
+
         return TKBBatchResponse.builder()
-                .items(Collections.emptyList())
-                .error(errorMessage)
+                .items(itemsOut)
+                .totalRows(totalRows)
+                .totalClasses(totalClasses)
+                .lastSlotIdx(sessionLastSlotIdx)
+                .occupiedRoomsCount(sessionOccupiedRooms.size())
                 .build();
     }
 
@@ -129,8 +108,6 @@ public class TimetableSchedulingService {
         subjectRoomMappingService.clearMappings();
         
         Set<Object> globalOccupiedRooms = dataLoaderService.loadGlobalOccupiedRooms();
-        log.info("Loaded {} global occupied rooms (confirmed)", globalOccupiedRooms.size());
-        
         return new HashSet<>(globalOccupiedRooms);
     }
 
@@ -149,18 +126,13 @@ public class TimetableSchedulingService {
             List<Room> rooms, Set<Object> occupiedRooms) {
         
         int targetTotal = tkbRequest.getSotiet();
-        log.info("Processing subject: {} with {} periods", tkbRequest.getMa_mon(), targetTotal);
 
         List<DataLoaderService.TKBTemplateRow> pool = dataRows.stream()
                 .filter(row -> toInt(row.getTotalPeriods()) == targetTotal)
                 .collect(Collectors.toList());
 
         if (pool.isEmpty()) {
-            return TKBBatchItemResponse.builder()
-                    .input(tkbRequest)
-                    .rows(Collections.emptyList())
-                    .note("Không có Data cho " + targetTotal + " tiết")
-                    .build();
+            throw new InvalidDataException("Không có Data cho " + targetTotal + " tiết (Môn: " + tkbRequest.getMa_mon() + ")");
         }
 
         int classes = Math.max(1, toInt(tkbRequest.getSolop(), 1));
@@ -168,11 +140,9 @@ public class TimetableSchedulingService {
         int startingSlotIdx;
 
         if (targetTotal == 60) {
-            log.info("Using SPECIAL 60-period logic for {}", tkbRequest.getMa_mon());
             startingSlotIdx = mapRegularSlotTo60PeriodSlot(sessionLastSlotIdx);
             resultRows = process60PeriodSubject(tkbRequest, pool, rooms, occupiedRooms, startingSlotIdx);
         } else {
-            log.info("Using REGULAR logic: {} classes for {}", classes, tkbRequest.getMa_mon());
             startingSlotIdx = (sessionLastSlotIdx + 1) % ROTATING_SLOTS.size();
             resultRows = processRegularSubject(tkbRequest, pool, rooms, occupiedRooms, startingSlotIdx, classes, targetTotal);
         }
@@ -193,23 +163,15 @@ public class TimetableSchedulingService {
      */
     public void commitSessionToGlobal() {
         if (sessionOccupiedRooms.isEmpty()) {
-            log.warn("No session occupied rooms to commit");
             return;
         }
 
         Set<Object> globalOccupied = dataLoaderService.loadGlobalOccupiedRooms();
-        int beforeCount = globalOccupied.size();
-
         globalOccupied.addAll(sessionOccupiedRooms);
-        int afterCount = globalOccupied.size();
-        int addedCount = afterCount - beforeCount;
 
         dataLoaderService.saveGlobalOccupiedRooms(globalOccupied);
         lastSlotIdx = sessionLastSlotIdx;
         dataLoaderService.saveLastSlotIdx(lastSlotIdx);
-
-        log.info("Committed {} new rooms to global. Total global rooms: {}", addedCount, afterCount);
-        log.info("Committed and saved lastSlotIdx to file: {}", lastSlotIdx);
 
         sessionOccupiedRooms.clear();
     }
@@ -331,8 +293,6 @@ public class TimetableSchedulingService {
         List<TKBRowResult> resultRows = new ArrayList<>();
         int idx = 0;
 
-        log.info("Processing regular subject: {} classes", classes);
-
         for (int cls = 1; cls <= classes; cls++) {
             String classRoomCode = null;
             String classRoomMaPhong = null;
@@ -399,7 +359,6 @@ public class TimetableSchedulingService {
             }
 
             if (ai > 0) {
-                log.warn("Not enough data to schedule all classes (remaining: {})", ai);
                 break;
             }
         }
@@ -420,23 +379,15 @@ public class TimetableSchedulingService {
         List<TKBRowResult> resultRows = new ArrayList<>();
 
         int classes = Math.max(1, toInt(tkbRequest.getSolop(), 1));
-        log.info("Processing 60-period subject with {} classes", classes);
 
         Map<String, List<DataLoaderService.TKBTemplateRow>> groups = pool.stream()
                 .collect(Collectors.groupingBy(row -> row.getDayOfWeek() + "_" + row.getKip()));
 
-        log.info("Grouped 60-period data into {} groups", groups.size());
-
         for (int cls = 1; cls <= classes; cls++) {
-            log.info("Processing 60-period class {}/{}", cls, classes);
-
             int slotIdx = (startingSlotIdx + (cls - 1)) % ROTATING_SLOTS_60.size();
             DayPairSlot dayPairSlot = ROTATING_SLOTS_60.get(slotIdx);
 
             Integer targetKip = dayPairSlot.getKip();
-
-            log.info("Class {} using slot: days {}-{} with kip {}",
-                    cls, dayPairSlot.getDay1(), dayPairSlot.getDay2(), targetKip);
 
             String classRoomCode = null;
             String classRoomMaPhong = null;
@@ -446,11 +397,8 @@ public class TimetableSchedulingService {
                 List<DataLoaderService.TKBTemplateRow> groupRows = groups.get(groupKey);
 
                 if (groupRows == null || groupRows.isEmpty()) {
-                    log.warn("No data for day {} kip {}", currentDay, targetKip);
                     continue;
                 }
-
-                log.info("Processing group {} with {} rows for class {}", groupKey, groupRows.size(), cls);
 
                 for (DataLoaderService.TKBTemplateRow row : groupRows) {
                     if (classRoomCode == null) {
@@ -474,7 +422,6 @@ public class TimetableSchedulingService {
             }
         }
 
-        log.info("Generated {} rows for 60-period subject with {} classes", resultRows.size(), classes);
         return resultRows;
     }
 
@@ -506,14 +453,12 @@ public class TimetableSchedulingService {
      */
     public void resetState() {
         lastSlotIdx = -1;
-        log.info("Reset TKB scheduling state");
     }
 
     /**
      * Reset danh sách phòng đã sử dụng
      */
     public void resetOccupiedRooms() {
-        int sessionCount = sessionOccupiedRooms.size();
         sessionOccupiedRooms.clear();
 
         Set<Object> emptySet = new HashSet<>();
@@ -521,8 +466,6 @@ public class TimetableSchedulingService {
 
         lastSlotIdx = -1;
         sessionLastSlotIdx = -1;
-
-        log.info("Reset occupied rooms - Cleared {} session rooms, global storage, and lastSlotIdx", sessionCount);
     }
 
     /**
@@ -533,8 +476,6 @@ public class TimetableSchedulingService {
         sessionLastSlotIdx = -1;
 
         dataLoaderService.saveLastSlotIdx(-1);
-
-        log.info("Reset lastSlotIdx to -1 and saved to file");
     }
 
     /**
@@ -583,11 +524,6 @@ public class TimetableSchedulingService {
         if (!roomResult.hasRoom()) {
             return null;
         }
-
-        log.info("Assigned room {} in building {} for subject {} (major: {}, preferred: {})",
-                roomResult.getRoomCode(), roomResult.getBuilding(),
-                tkbRequest.getMa_mon(), tkbRequest.getNganh(),
-                roomResult.isPreferredBuilding() ? "YES" : "NO");
 
         String occupationKey = roomResult.getMaPhong() + "|" + rowThu + "|" + rowKip;
         occupiedRooms.add(occupationKey);
