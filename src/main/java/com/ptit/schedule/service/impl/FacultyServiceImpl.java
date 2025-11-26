@@ -3,6 +3,7 @@ package com.ptit.schedule.service.impl;
 import com.ptit.schedule.dto.FacultyRequest;
 import com.ptit.schedule.dto.FacultyResponse;
 import com.ptit.schedule.entity.Faculty;
+import com.ptit.schedule.exception.ResourceNotFoundException;
 import com.ptit.schedule.repository.FacultyRepository;
 import com.ptit.schedule.service.FacultyService;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +33,7 @@ public class FacultyServiceImpl implements FacultyService {
     @Transactional(readOnly = true)
     public FacultyResponse getFacultyById(String id) {
         Faculty faculty = facultyRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Faculty not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("khoa", "mã", id));
         return FacultyResponse.fromEntity(faculty);
     }
 
@@ -49,7 +50,7 @@ public class FacultyServiceImpl implements FacultyService {
     @Override
     public FacultyResponse updateFaculty(String id, FacultyRequest request) {
         Faculty faculty = facultyRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Faculty not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("khoa", "mã", id));
         
         faculty.setFacultyName(request.getFacultyName());
         
@@ -60,7 +61,7 @@ public class FacultyServiceImpl implements FacultyService {
     @Override
     public void deleteFaculty(String id) {
         if (!facultyRepository.existsById(id)) {
-            throw new RuntimeException("Faculty not found with id: " + id);
+            throw new ResourceNotFoundException("khoa", "mã", id);
         }
         facultyRepository.deleteById(id);
     }

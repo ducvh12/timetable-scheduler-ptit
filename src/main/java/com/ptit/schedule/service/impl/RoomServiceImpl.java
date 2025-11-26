@@ -8,6 +8,7 @@ import com.ptit.schedule.entity.Room;
 import com.ptit.schedule.entity.RoomStatus;
 import com.ptit.schedule.entity.RoomType;
 import com.ptit.schedule.dto.RoomPickResult;
+import com.ptit.schedule.exception.ResourceNotFoundException;
 import com.ptit.schedule.repository.RoomRepository;
 import com.ptit.schedule.service.RoomService;
 import com.ptit.schedule.service.SubjectRoomMappingService;
@@ -43,7 +44,7 @@ public class RoomServiceImpl implements RoomService {
     @Transactional(readOnly = true)
     public RoomResponse getRoomById(Long id) {
         Room room = roomRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy phòng với ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("phòng học", "mã", id));
         return convertToResponse(room);
     }
 
@@ -73,7 +74,7 @@ public class RoomServiceImpl implements RoomService {
     @Override
     public RoomResponse updateRoom(Long id, RoomRequest roomRequest) {
         Room room = roomRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy phòng với ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("phòng học", "mã", id));
 
         // Kiểm tra phòng khác có cùng số phòng và tòa nhà không
         Optional<Room> existingRoom = roomRepository.findByPhongAndDay(

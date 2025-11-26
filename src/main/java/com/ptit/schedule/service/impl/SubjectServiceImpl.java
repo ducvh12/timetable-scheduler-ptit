@@ -381,7 +381,7 @@ public class SubjectServiceImpl implements SubjectService {
     @Override
     public void deleteSubject(Long id) {
         if (!subjectRepository.existsById(id)) {
-            throw new RuntimeException("Subject not found with id: " + id);
+            throw new ResourceNotFoundException("môn học", "mã", id);
         }
         subjectRepository.deleteById(id);
     }
