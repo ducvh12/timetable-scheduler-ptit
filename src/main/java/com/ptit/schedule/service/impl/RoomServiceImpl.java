@@ -121,7 +121,6 @@ public class RoomServiceImpl implements RoomService {
             // Parse roomCode format: "G06-A2" or "104-A2" -> phong="G06" or "104", day="A2"
             String[] parts = roomCode.split("-");
             if (parts.length != 2) {
-                log.warn("Invalid room code format: {}. Expected format: 'phong-day' (e.g., 'G06-A2')", roomCode);
                 notFoundRooms.add(roomCode);
                 continue;
             }
@@ -135,18 +134,11 @@ public class RoomServiceImpl implements RoomService {
                 room.setStatus(request.getStatus());
                 Room updatedRoom = roomRepository.save(room);
                 updatedRooms.add(convertToResponse(updatedRoom));
-                log.info("Updated room {} status to {}", roomCode, request.getStatus());
             } else {
-                log.warn("Room not found: {} (phong: {}, day: {})", roomCode, phong, day);
                 notFoundRooms.add(roomCode);
             }
         }
 
-        if (!notFoundRooms.isEmpty()) {
-            log.warn("Could not find {} rooms: {}", notFoundRooms.size(), notFoundRooms);
-        }
-
-        log.info("Bulk updated {} rooms to status {}", updatedRooms.size(), request.getStatus());
         return updatedRooms;
     }
 
@@ -202,16 +194,25 @@ public class RoomServiceImpl implements RoomService {
             Integer thu, Integer kip, String subjectType, String studentYear,
             String heDacThu, List<String> weekSchedule, String nganh, String maMon) {
 
-        // DEBUG: Log parameters for common subjects
-        log.info("\n=== ROOM PICK DEBUG START ===");
-        log.info("Subject: {} ({})", maMon, nganh);
-        log.info("Parameters: subjectType={}, studentYear={}, heDacThu={}", subjectType, studentYear, heDacThu);
-        log.info("Time: thu={}, kip={}, sisoPerClass={}", thu, kip, sisoPerClass);
-        log.info("Total rooms available: {}", rooms.size());
+        // Validate required parameters
+        if (rooms == null || rooms.isEmpty()) {
+            throw new IllegalArgumentException("Danh sách phòng học không được null hoặc rỗng");
+        }
+        if (sisoPerClass == null || sisoPerClass <= 0) {
+            throw new IllegalArgumentException("Sĩ số mỗi lớp phải lớn hơn 0, nhận được: " + sisoPerClass);
+        }
+        if (maMon == null || maMon.trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã môn học không được null hoặc rỗng");
+        }
+        if (occupied == null) {
+            throw new IllegalArgumentException("Danh sách phòng đã sử dụng không được null");
+        }
+
+        // Auto-detect English subject if subjectType is not set
+        String effectiveSubjectType = detectSubjectType(subjectType, maMon);
 
         // Skip room assignment for rows with tiet_bd = 12 (no room needed)
         if (thu == null || kip == null) {
-            log.info("Skipping room assignment: thu={}, kip={}", thu, kip);
             return RoomPickResult.builder()
                     .roomCode(null)
                     .roomId(null)
@@ -226,27 +227,17 @@ public class RoomServiceImpl implements RoomService {
         if (existingRoom != null) {
             Room room = findRoomByCode(rooms, existingRoom);
             if (room != null && isRoomAvailable(room, thu, kip, occupied, weekSchedule, sisoPerClass)
-                    && isRoomSuitable(room, subjectType, studentYear, heDacThu)) {
+                    && isRoomSuitable(room, effectiveSubjectType, studentYear, heDacThu)) {
                 return createRoomPickResult(room, 0, true);
             }
         }
 
         // 2. Get preferred buildings for major
         List<String> preferredBuildings = majorBuildingPreferenceService.getPreferredBuildingsForMajor(nganh);
-        if (preferredBuildings.isEmpty()) {
+        if (preferredBuildings == null || preferredBuildings.isEmpty()) {
             preferredBuildings = Arrays.asList("A2", "A1", "A3"); // Default fallback
         }
         final List<String> finalPreferredBuildings = preferredBuildings;
-
-        log.info("Picking room for subject: {}, major: {}, preferred buildings: {}",
-                maMon, nganh, finalPreferredBuildings);
-
-        // Special debug logging for common subjects
-        if ("Chung".equals(nganh)) {
-            log.warn(
-                    "DEBUG: Processing COMMON SUBJECT - subject: {}, major: {}, subjectType: {}, studentYear: {}, heDacThu: {}",
-                    maMon, nganh, subjectType, studentYear, heDacThu);
-        }
 
         // 3. Filter rooms by constraints
         List<Room> suitableRooms = new ArrayList<>();
@@ -299,55 +290,25 @@ public class RoomServiceImpl implements RoomService {
             // Check capacity
             int cap = r.getCapacity();
             if (sisoPerClass != null && cap < sisoPerClass) {
-                log.debug("Room {} rejected: insufficient capacity ({} < {})",
-                        r.getPhong(), cap, sisoPerClass);
                 continue;
             }
 
             // Check room suitability (subject type, student year, special system)
-            boolean isSuitable = isRoomSuitable(r, subjectType, studentYear, heDacThu);
-            if (isSuitable) {
-                suitableRooms.add(r);
-                log.debug("Room {} passed suitability check", r.getPhong());
-            } else {
-                // Enhanced debug logging for common subjects
-                if ("Chung".equals(nganh)) {
-                    log.warn(
-                            "DEBUG: Common subject - Room {} FAILED suitability check - type: {}, note: {}, subjectType: {}, studentYear: {}, heDacThu: {}",
-                            r.getPhong(), r.getType(), r.getNote(), subjectType, studentYear, heDacThu);
-                } else {
-                    log.debug(
-                            "Room {} failed suitability check - type: {}, note: {}, subjectType: {}, studentYear: {}, heDacThu: {}",
-                            r.getPhong(), r.getType(), r.getNote(), subjectType, studentYear, heDacThu);
+            try {
+                if (isRoomSuitable(r, effectiveSubjectType, studentYear, heDacThu)) {
+                    suitableRooms.add(r);
                 }
-            }
-        }
-
-        log.info("Found {} suitable rooms out of {} total rooms", suitableRooms.size(), rooms.size());
-
-        // Special debug logging for common subjects when no suitable rooms found
-        if ("Chung".equals(nganh) && suitableRooms.isEmpty()) {
-            log.error(
-                    "DEBUG: NO SUITABLE ROOMS FOUND FOR COMMON SUBJECT: {} - subjectType: {}, studentYear: {}, heDacThu: {}, sisoPerClass: {}",
-                    maMon, subjectType, studentYear, heDacThu, sisoPerClass);
-        }
-
-        // Verify all suitable rooms have sufficient capacity
-        for (Room room : suitableRooms) {
-            if (room.getCapacity() < sisoPerClass) {
-                log.error("CRITICAL: Room {} in suitable list has insufficient capacity ({} < {})",
-                        room.getPhong(), room.getCapacity(), sisoPerClass);
+            } catch (Exception e) {
+                log.warn("Lỗi khi kiểm tra phòng {} phù hợp: {}", r.getPhong(), e.getMessage());
             }
         }
 
         if (suitableRooms.isEmpty()) {
-            log.warn(
-                    "No suitable rooms found for subject: {}, major: {}, subjectType: {}, studentYear: {}, heDacThu: {}",
-                    maMon, nganh, subjectType, studentYear, heDacThu);
+            log.warn("Không tìm thấy phòng phù hợp cho môn {} (subjectType: {}), thử logic dự phòng",
+                    maMon, effectiveSubjectType);
 
             // Fallback: allow rooms that still satisfy suitability rules but ignore
             // building preference
-            log.info("Trying fallback logic with SAME suitability constraints (no cross-group mixing)...");
             for (Room r : rooms) {
                 String code = r.getPhong();
                 if (code == null || code.trim().isEmpty()) {
@@ -369,30 +330,37 @@ public class RoomServiceImpl implements RoomService {
                 // Check capacity
                 int cap = r.getCapacity();
                 if (sisoPerClass != null && cap < sisoPerClass) {
-                    log.debug("Fallback: Room {} rejected: insufficient capacity ({} < {})",
-                            r.getPhong(), cap, sisoPerClass);
                     continue;
                 }
 
                 // Still enforce suitability to avoid mixing special-purpose rooms
-                if (!isRoomSuitable(r, subjectType, studentYear, heDacThu)) {
-                    log.debug("Fallback: Room {} rejected by suitability check", r.getPhong());
-                    continue;
+                try {
+                    if (isRoomSuitable(r, effectiveSubjectType, studentYear, heDacThu)) {
+                        suitableRooms.add(r);
+                    }
+                } catch (Exception e) {
                 }
-
-                suitableRooms.add(r);
-                log.info("Fallback: Added room {} to suitable list", r.getPhong());
             }
 
             if (suitableRooms.isEmpty()) {
-                log.error("No rooms available even with fallback logic (respecting suitability)");
-                return RoomPickResult.builder()
-                        .roomCode(null)
-                        .roomId(null)
-                        .building(null)
-                        .distanceScore(null)
-                        .isPreferredBuilding(false)
-                        .build();
+                String errorMsg = String.format(
+                        "Không tìm thấy phòng phù hợp cho môn %s (subjectType: %s, Ngành: %s, Sĩ số: %d, Thứ: %d, Kíp: %d)",
+                        maMon, effectiveSubjectType, nganh, sisoPerClass, thu, kip);
+                log.error(errorMsg);
+
+                // Additional debug for English subjects
+                if ("english".equals(effectiveSubjectType)) {
+                    log.error("Chi tiết: Môn tiếng anh {} cần phòng ENGLISH_CLASS với capacity >= {}",
+                            maMon, sisoPerClass);
+                    log.error("Danh sách phòng ENGLISH_CLASS trong hệ thống:");
+                    rooms.stream()
+                            .filter(r -> r.getType() != null
+                                    && "english_class".equals(r.getType().name().toLowerCase()))
+                            .forEach(r -> log.error("  - Phòng {}: capacity={}, day={}",
+                                    r.getPhong(), r.getCapacity(), r.getDay()));
+                }
+
+                throw new RuntimeException(errorMsg);
             }
         }
 
@@ -409,11 +377,6 @@ public class RoomServiceImpl implements RoomService {
 
         boolean isPreferredBuilding = selectedRoom.getDay().equals(finalPreferredBuildings.get(0));
         int distanceToPreferred = calculateDistance(selectedRoom.getDay(), finalPreferredBuildings.get(0));
-
-        log.info("Selected room {} in building {} for subject {} (major: {}, preferred: {}, distance: {})",
-                selectedRoom.getPhong(), selectedRoom.getDay(), maMon, nganh,
-                isPreferredBuilding ? "YES" : "NO", distanceToPreferred);
-        log.info("=== ROOM PICK DEBUG END - SUCCESS ===");
 
         return createRoomPickResult(selectedRoom, distanceToPreferred, isPreferredBuilding);
     }
@@ -469,8 +432,6 @@ public class RoomServiceImpl implements RoomService {
 
         // Check capacity
         if (room.getCapacity() < sisoPerClass) {
-            log.debug("Room {} rejected in isRoomAvailable: insufficient capacity ({} < {})",
-                    room.getPhong(), room.getCapacity(), sisoPerClass);
             return false;
         }
 
@@ -478,36 +439,44 @@ public class RoomServiceImpl implements RoomService {
     }
 
     private boolean isRoomSuitable(Room room, String subjectType, String studentYear, String heDacThu) {
+        if (room == null) {
+            throw new IllegalArgumentException("Phòng học không được null");
+        }
+        if (room.getType() == null) {
+            throw new IllegalStateException("Loại phòng của " + room.getPhong() + " không được null");
+        }
+
         String roomType = room.getType().name().toLowerCase();
         String roomNote = room.getNote() != null ? room.getNote().toLowerCase() : "";
 
-        log.debug("Checking room suitability: phong={}, type={}, note={}, subjectType={}, studentYear={}, heDacThu={}",
-                room.getPhong(), roomType, roomNote, subjectType, studentYear, heDacThu);
-
-        // SPECIAL HANDLING FOR COMMON SUBJECTS (môn chung)
-        // Common subjects should be able to use general rooms without strict
-        // restrictions
+        // 1. SPECIAL HANDLING FOR COMMON SUBJECTS (Môn chung)
         if (subjectType == null || subjectType.isEmpty() || "general".equals(subjectType)) {
-            // For common subjects, allow general rooms and avoid special-purpose rooms
+            // Accept general rooms for common subjects
             if ("general".equals(roomType)) {
-                log.debug("Common subject - accepting general room: {}", room.getPhong());
                 return true;
             }
-            // Avoid special purpose rooms for common subjects
-            if (Arrays.asList("ngoc_truc", "english_class", "clc").contains(roomType) ||
-                    roomNote.contains("nt") || roomNote.contains("phòng học ta") || roomNote.contains("lớp clc")) {
-                log.debug("Common subject - rejecting special room: {} (type: {}, note: {})",
-                        room.getPhong(), roomType, roomNote);
+            // Avoid all special-purpose rooms for common subjects
+            if (Arrays.asList("ngoc_truc", "english_class", "clc").contains(roomType)) {
                 return false;
             }
-            // Accept khoa_2024 rooms for common subjects if no other option
+            // Accept khoa_2024 rooms as fallback for common subjects
             if ("khoa_2024".equals(roomType)) {
-                log.debug("Common subject - accepting khoa_2024 room: {}", room.getPhong());
                 return true;
             }
+            return true; // Accept other general-type rooms
         }
 
-        // Special system room assignment rules (Hệ đặc thù)
+        // 2. SPECIAL HANDLING FOR ENGLISH SUBJECTS (Môn Tiếng Anh)
+        if ("english".equals(subjectType)) {
+            // English subjects MUST use ENGLISH_CLASS rooms only
+            if ("english_class".equals(roomType)) {
+                return true;
+            }
+            // Reject all other room types for English subjects
+            return false;
+        }
+
+        // 3. SPECIAL SYSTEM ROOM ASSIGNMENT (Hệ đặc thù - CLC, CTTT, etc.)
         String normalizedHeDacThu = normalizeSpecialSystem(heDacThu);
         if (normalizedHeDacThu != null && !normalizedHeDacThu.isEmpty()) {
             if ("chinhquy".equals(normalizedHeDacThu)) {
@@ -515,72 +484,63 @@ public class RoomServiceImpl implements RoomService {
             }
         }
 
-        // Debug log for room suitability check
-        if (subjectType == null || subjectType.isEmpty()) {
-            log.info("Room suitability check for COMMON SUBJECT - room: {}, type: {}, studentYear: {}, heDacThu: {}",
-                    room.getPhong(), roomType, studentYear, heDacThu);
-        }
-
         if (normalizedHeDacThu != null && !normalizedHeDacThu.isEmpty()) {
             if ("clc".equals(normalizedHeDacThu)) {
-                // Handle CLC room assignment based on student year
+                // CLC system
                 if ("2024".equals(studentYear)) {
-                    // CLC + Khóa 2024: Ưu tiên phòng có "Lớp CLC 2024" trong note
-                    if (!roomNote.contains("lớp clc 2024")) {
-                        return false;
+                    // CLC Khóa 2024: must have "lớp clc 2024" in note
+                    if (roomNote.contains("lớp clc 2024")) {
+                        return true;
                     }
+                    return false;
                 } else {
-                    // CLC + Khóa khác: phòng CLC nhưng KHÔNG được có "2024" trong note
-                    if ((!roomNote.contains("clc") && !"clc".equals(roomType)) || roomNote.contains("2024")) {
-                        return false;
+                    // CLC other years: room type = CLC but NOT 2024
+                    if ("clc".equals(roomType) && !roomNote.contains("2024")) {
+                        return true;
                     }
+                    return false;
                 }
             } else {
                 // Other special systems (CTTT, etc.): NO room assignment
                 return false;
             }
         }
-        // Hệ thường (không phải he_dac_thu)
-        else {
-            // Khóa 2022 → phòng NT
-            if ("2022".equals(studentYear)) {
-                // Must be phòng NT: type="ngoc_truc"
-                if (!"ngoc_truc".equals(roomType)) {
-                    return false;
-                }
-            }
-            // Môn "Tiếng Anh" → phòng Tiếng Anh
-            else if ("english".equals(subjectType)) {
-                // Must be phòng Tiếng Anh: type="english_class"
-                if (!"english_class".equals(roomType)) {
-                    return false;
-                }
-            }
-            // Còn lại (khóa khác + môn thường) → phòng theo khóa
-            else {
-                // Không được dùng phòng NT, Tiếng Anh, CLC
-                if (Arrays.asList("ngoc_truc", "english_class", "clc").contains(roomType) ||
-                        roomNote.contains("nt") || roomNote.contains("phòng học ta")
-                        || roomNote.contains("lớp clc")) {
-                    return false;
-                }
 
-                // Ưu tiên phòng theo khóa (nếu không phù hợp với khóa thì reject)
-                if ("2024".equals(studentYear)) {
-                    // Khóa 2024 → phòng year2024 hoặc general
-                    if (!Arrays.asList("khoa_2024", "general").contains(roomType)) {
-                        return false;
-                    }
-                } else {
-                    // Khóa khác → chỉ phòng general (không year2024)
-                    if (!"general".equals(roomType)) {
-                        return false;
-                    }
-                }
+        // 4. REGULAR SYSTEM (Hệ Chính quy)
+
+        // Khóa 2022 → NGOC_TRUC rooms only
+        if ("2022".equals(studentYear)) {
+            if ("ngoc_truc".equals(roomType)) {
+                return true;
             }
+            return false;
         }
 
-        return true;
+        // Khóa 2024 → KHOA_2024 or GENERAL rooms
+        if ("2024".equals(studentYear)) {
+            // Reject special-purpose rooms
+            if (Arrays.asList("ngoc_truc", "english_class", "clc").contains(roomType)) {
+                return false;
+            }
+            // Accept KHOA_2024 or GENERAL
+            if (Arrays.asList("khoa_2024", "general").contains(roomType)) {
+                return true;
+            }
+            return false;
+        }
+
+        // Other years (2023, 2021, etc.) → GENERAL rooms only
+        // Reject all special-purpose rooms
+        if (Arrays.asList("ngoc_truc", "english_class", "clc", "khoa_2024").contains(roomType)) {
+            return false;
+        }
+
+        // Accept only GENERAL rooms
+        if ("general".equals(roomType)) {
+            return true;
+        }
+
+        return false;
     }
 
     private RoomPickResult createRoomPickResult(Room room, int distanceScore,
@@ -604,6 +564,44 @@ public class RoomServiceImpl implements RoomService {
 
     private String buildLegacyOccupationKey(String roomCode, Integer thu, Integer kip) {
         return roomCode + "|" + thu + "|" + kip;
+    }
+
+    /**
+     * Auto-detect subject type based on subject code or existing subjectType
+     * Automatically identifies English courses (Course 1, 2, 3, 3+)
+     */
+    private String detectSubjectType(String subjectType, String maMon) {
+        // If subjectType is already set and not empty, use it
+        if (subjectType != null && !subjectType.trim().isEmpty()
+                && !"general".equals(subjectType.trim().toLowerCase())) {
+            return subjectType.trim().toLowerCase();
+        }
+
+        // Auto-detect English subjects by specific course codes
+        if (maMon != null) {
+            String upperCode = maMon.trim().toUpperCase();
+
+            // Specific English course codes from curriculum:
+            // BAS1157 = Course 1, BAS1158 = Course 2, BAS1159 = Course 3, BAS1160 = Course
+            // 3+
+            if (upperCode.equals("BAS1157") || // Tiếng Anh Course 1
+                    upperCode.equals("BAS1158") || // Tiếng Anh Course 2
+                    upperCode.equals("BAS1159") || // Tiếng Anh Course 3
+                    upperCode.equals("BAS1160")) { // Tiếng Anh Course 3+
+                return "english";
+            }
+
+            // Also check generic English code patterns
+            if (upperCode.startsWith("ENG") ||
+                    upperCode.startsWith("ANH") ||
+                    upperCode.matches(".*ENGLISH.*") ||
+                    upperCode.matches(".*TIENG.*ANH.*")) {
+                return "english";
+            }
+        }
+
+        // Default to general for other subjects
+        return subjectType != null ? subjectType.trim().toLowerCase() : "general";
     }
 
     private String normalizeSpecialSystem(String heDacThu) {
