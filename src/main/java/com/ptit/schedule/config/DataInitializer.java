@@ -54,7 +54,7 @@ public class DataInitializer implements CommandLineRunner {
             }
             
             // Initialize default users (always check)
-//            initializeDefaultUsers();
+           initializeDefaultUsers();
             
         } catch (Exception e) {
             log.error("Error during data initialization: {}", e.getMessage(), e);
