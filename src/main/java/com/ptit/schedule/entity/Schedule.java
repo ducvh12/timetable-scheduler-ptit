@@ -1,5 +1,6 @@
 package com.ptit.schedule.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -50,6 +51,17 @@ public class Schedule {
 
     @Column(name = "room_number")
     private String roomNumber; // Mã phòng
+
+    @Column(name = "academic_year")
+    private String academicYear; // Năm học (VD: "2023-2024")
+
+    @Column(name = "semester")
+    private String semester; // Học kỳ (VD: "1", "2", "hè")
+
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user; // User tạo schedule này
 
     // Tuần 1 đến tuần 18: mỗi tuần là một cột kiểu String (lưu "x" hoặc "")
     @Column(name = "week_1")

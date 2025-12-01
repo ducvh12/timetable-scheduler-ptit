@@ -1,5 +1,6 @@
 package com.ptit.schedule.service;
 
+import com.ptit.schedule.dto.ExcelImportResult;
 import com.ptit.schedule.dto.SubjectRequest;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -9,11 +10,18 @@ public interface ExcelReaderService {
     
     /**
      * Đọc file Excel và trả về danh sách SubjectRequest
+     * @deprecated Use readAndValidateSubjectsFromExcel instead
      */
-    List<SubjectRequest> readSubjectsFromExcel(MultipartFile file, String semester);
-    
+    @Deprecated
+    List<SubjectRequest> readSubjectsFromExcel(MultipartFile file, String semester, String academicYear);
+
     /**
-     * Validate dữ liệu Excel
+     * Đọc file Excel, validate duplicates và trả về kết quả import
+     * @param file File Excel chứa danh sách môn học
+     * @param semester Tên học kỳ
+     * @param academicYear Năm học
+     * @return ExcelImportResult chứa danh sách valid subjects và warnings
      */
-    List<String> validateExcelData(List<SubjectRequest> subjects);
+    ExcelImportResult readAndValidateSubjectsFromExcel(MultipartFile file, String semester, String academicYear);
+
 }

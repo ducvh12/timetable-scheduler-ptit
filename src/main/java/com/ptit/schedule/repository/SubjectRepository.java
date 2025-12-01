@@ -5,9 +5,11 @@ import com.ptit.schedule.entity.Subject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,9 +20,27 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     // Tìm tất cả subject theo major
     List<Subject> findByMajorId(Integer majorId);
 
-    @Query("SELECT s FROM Subject s WHERE s.subjectCode = :subjectCode AND s.major.majorCode = :majorCode")
-    Optional<Subject> findBySubjectCodeAndMajorCode(@Param("subjectCode") String subjectCode,
-                                                    @Param("majorCode") String majorCode);
+    /**
+     * Tìm subject theo subjectCode, majorCode, semesterName, academicYear và classYear
+     * Dùng để check duplicate khi import Excel hoặc tạo subject mới
+     */
+    @Query("""
+        SELECT s FROM Subject s 
+        JOIN s.major m 
+        JOIN s.semester sem 
+        WHERE s.subjectCode = :subjectCode 
+          AND m.majorCode = :majorCode 
+          AND sem.semesterName = :semesterName 
+          AND sem.academicYear = :academicYear 
+          AND m.classYear = :classYear
+        """)
+    Optional<Subject> findBySubjectCodeAndMajorCodeAndSemesterAndClassYear(
+        @Param("subjectCode") String subjectCode,
+        @Param("majorCode") String majorCode,
+        @Param("semesterName") String semesterName,
+        @Param("academicYear") String academicYear,
+        @Param("classYear") String classYear
+    );
 
     @Query("""
     SELECT new com.ptit.schedule.dto.SubjectMajorDTO(
@@ -58,21 +78,15 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     )
     FROM Subject s
     JOIN s.major m
-    WHERE m.classYear = :classYear
+    WHERE s.semester.semesterName = :semesterName
+      AND s.semester.academicYear = :academicYear
+      AND m.classYear = :classYear
       AND s.programType = :programType
-      AND s.subjectCode NOT IN (
-          'BAS1160',
-          'BAS1153',
-          'SKD1102',
-          'BAS1152',
-          'SKD1103',
-          'MUL13118',
-          'BAS1158',
-          'SKD1101',
-          'SKD1102'
-      )
+      AND s.isCommon = false
     """)
     List<SubjectMajorDTO> findSubjectsWithMajorInfoByProgramType(
+            @Param("semesterName") String semesterName,
+            @Param("academicYear") String academicYear,
             @Param("classYear") String classYear,
             @Param("programType") String programType);
 
@@ -93,27 +107,24 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     )
     FROM Subject s
     JOIN s.major m
-    WHERE m.classYear = :classYear
+    WHERE s.semester.semesterName = :semesterName
+      AND s.semester.academicYear = :academicYear
+      AND m.classYear = :classYear
       AND s.programType = :programType
       AND m.majorCode IN :majorCodes
-      AND s.subjectCode NOT IN (
-          'BAS1160',
-          'BAS1153',
-          'SKD1102',
-          'BAS1152',
-          'SKD1103',
-          'MUL13118',
-          'BAS1158',
-          'SKD1101'
-      )
+      AND s.isCommon = false
 """)
     List<SubjectMajorDTO> findSubjectsWithMajorInfoByMajorCodes(
+            @Param("semesterName") String semesterName,
+            @Param("academicYear") String academicYear,
             @Param("classYear") String classYear,
             @Param("programType") String programType,
             @Param("majorCodes") List<String> majorCodes);
 
 
-
+    /**
+     * Lấy tất cả subjects chung theo semester và academic year
+     */
     @Query("""
     SELECT new com.ptit.schedule.dto.SubjectMajorDTO(
          s.subjectCode,
@@ -130,21 +141,17 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
      )
     FROM Subject s
     JOIN s.major m
-    WHERE s.subjectCode IN (
-          'BAS1160',
-          'BAS1153',
-          'SKD1102',
-          'BAS1152',
-          'SKD1103',
-          'MUL13118',
-          'BAS1158',
-          'SKD1101'
-      )
+    WHERE s.semester.semesterName = :semesterName
+      AND s.semester.academicYear = :academicYear
+      AND s.isCommon = true
     GROUP BY s.subjectCode, s.subjectName, m.majorCode, m.classYear,
              s.theoryHours, s.exerciseHours, s.labHours,
              s.projectHours, s.selfStudyHours, s.studentsPerClass
 """)
-    List<SubjectMajorDTO> findCommonSubjects();
+    List<SubjectMajorDTO> findCommonSubjects(
+        @Param("semesterName") String semesterName,
+        @Param("academicYear") String academicYear
+    );
 
     /**
      * Lấy tất cả subjects với pagination
@@ -163,13 +170,16 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     SELECT s
     FROM Subject s
     JOIN s.major m
-    WHERE (:semester IS NULL OR s.semester = :semester)
+    LEFT JOIN s.semester sem
+    WHERE (:academicYear IS NULL OR sem.academicYear = :academicYear)
+      AND (:semesterName IS NULL OR sem.semesterName = :semesterName)
       AND (:classYear IS NULL OR m.classYear = :classYear)
       AND (:majorCode IS NULL OR m.majorCode = :majorCode)
       AND (:programType IS NULL OR s.programType = :programType)
     """)
     Page<Subject> findAllWithFilters(
-        @Param("semester") String semester,
+        @Param("academicYear") String academicYear,
+        @Param("semesterName") String semesterName,
         @Param("classYear") String classYear,
         @Param("majorCode") String majorCode,
         @Param("programType") String programType,
@@ -177,14 +187,38 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     );
 
     /**
-     * Tìm tất cả subjects theo semester
+     * Tìm tất cả subjects theo semesterName
      */
-    List<Subject> findBySemester(String semester);
+    @Query("SELECT s FROM Subject s WHERE s.semester.semesterName = :semesterName")
+    List<Subject> findBySemesterName(@Param("semesterName") String semesterName);
 
     /**
-     * Xóa tất cả subjects theo semester
+     * Tìm tất cả subjects theo semesterName và academicYear
      */
-    void deleteBySemester(String semester);
+    @Query("SELECT s FROM Subject s WHERE s.semester.semesterName = :semesterName AND s.semester.academicYear = :academicYear")
+    List<Subject> findBySemesterNameAndAcademicYear(
+        @Param("semesterName") String semesterName, 
+        @Param("academicYear") String academicYear
+    );
+
+    /**
+     * Xóa tất cả subjects theo semesterName
+     */
+    @Transactional
+    @Modifying
+    @Query("DELETE FROM Subject s WHERE s.semester.semesterName = :semesterName")
+    void deleteBySemesterName(@Param("semesterName") String semesterName);
+
+    /**
+     * Xóa tất cả subjects theo semesterName và academicYear
+     */
+    @Transactional
+    @Modifying
+    @Query("DELETE FROM Subject s WHERE s.semester.semesterName = :semesterName AND s.semester.academicYear = :academicYear")
+    int deleteBySemesterNameAndAcademicYear(
+        @Param("semesterName") String semesterName, 
+        @Param("academicYear") String academicYear
+    );
 
     /**
      * Lấy tất cả program types (distinct)
@@ -193,11 +227,37 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     List<String> findAllDistinctProgramTypes();
 
     /**
+     * Lấy program types theo semester và academic year
+     */
+    @Query("SELECT DISTINCT s.programType FROM Subject s WHERE s.semester.semesterName = :semesterName AND s.semester.academicYear = :academicYear AND s.programType IS NOT NULL ORDER BY s.programType")
+    List<String> findDistinctProgramTypesBySemesterNameAndAcademicYear(
+        @Param("semesterName") String semesterName,
+        @Param("academicYear") String academicYear
+    );
+
+    /**
      * Lấy tất cả class years (distinct) từ Major
      */
     @Query("SELECT DISTINCT m.classYear FROM Major m WHERE m.classYear IS NOT NULL ORDER BY m.classYear")
     List<String> findAllDistinctClassYears();
 
+    /**
+     * Lấy class years theo semester, academic year và program type
+     */
+    @Query("SELECT DISTINCT m.classYear FROM Subject s JOIN s.major m WHERE s.semester.semesterName = :semesterName AND s.semester.academicYear = :academicYear AND s.programType = :programType AND m.classYear IS NOT NULL ORDER BY m.classYear DESC")
+    List<String> findDistinctClassYearsBySemesterNameAndAcademicYearAndProgramType(
+        @Param("semesterName") String semesterName,
+        @Param("academicYear") String academicYear,
+        @Param("programType") String programType
+    );
+
+
 }
+
+
+
+
+
+
 
 

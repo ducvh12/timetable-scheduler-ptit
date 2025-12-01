@@ -42,30 +42,20 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
 
     @Override
     public List<ConflictResult.RoomConflict> detectRoomConflicts(List<ScheduleEntry> scheduleEntries) {
-//        log.debug("=== detectRoomConflicts START ===");
-//        log.debug("Total schedule entries: {}", scheduleEntries.size());
-        
         List<ConflictResult.RoomConflict> conflicts = new ArrayList<>();
 
-        // Group by room and time slot key
         Map<String, Map<String, List<ScheduleEntryWithTimeSlot>>> roomTimeMap = new HashMap<>();
 
         for (ScheduleEntry entry : scheduleEntries) {
             if (entry.getTimeSlots() == null) continue;
-            
-            // Bỏ qua các lớp học online (không cần kiểm tra xung đột phòng học)
+
             if (isOnlineClass(entry)) {
-//                log.debug("Skipping online class: {}", entry.getSubjectName());
                 continue;
             }
 
             for (ScheduleEntry.TimeSlot timeSlot : entry.getTimeSlots()) {
                 String room = entry.getRoom();
                 String timeKey = timeSlot.getSlotKey();
-                
-//                log.debug("Processing: Subject={}, Room={}, SlotKey={}, DayOfWeek={}",
-//                    entry.getSubjectName(), room, timeKey, timeSlot.getDayOfWeek());
-
                 roomTimeMap
                         .computeIfAbsent(room, k -> new HashMap<>())
                         .computeIfAbsent(timeKey, k -> new ArrayList<>())
@@ -73,35 +63,20 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
             }
         }
 
-//        log.debug("RoomTimeMap created with {} rooms", roomTimeMap.size());
-
-        // Find conflicts (same room, same time, different subjects)
         for (Map.Entry<String, Map<String, List<ScheduleEntryWithTimeSlot>>> roomEntry : roomTimeMap.entrySet()) {
             String room = roomEntry.getKey();
-            
-//            log.debug("Checking room: {} with {} time slots", room, roomEntry.getValue().size());
             
             for (Map.Entry<String, List<ScheduleEntryWithTimeSlot>> timeEntry : roomEntry.getValue().entrySet()) {
                 String timeSlotKey = timeEntry.getKey();
                 List<ScheduleEntryWithTimeSlot> entriesAtTime = timeEntry.getValue();
 
-//                log.debug("Time slot: {}, entries count: {}", timeSlotKey, entriesAtTime.size());
-
                 if (entriesAtTime.size() > 1) {
-//                    log.debug("=== POTENTIAL ROOM CONFLICT ===");
-//                    log.debug("Room: {}, TimeSlotKey: {}", room, timeSlotKey);
-                    
-                    for (int i = 0; i < entriesAtTime.size(); i++) {
-                        ScheduleEntryWithTimeSlot entry = entriesAtTime.get(i);
-//                        log.debug("Entry {}: Subject={}, Teacher={}, DayOfWeek={}",
-//                            i, entry.entry.getSubjectName(), entry.entry.getTeacherName(), entry.timeSlot.getDayOfWeek());
-                    }
-                    
-                    // Remove duplicates (same subject, same teacher)
+//                    for (int i = 0; i < entriesAtTime.size(); i++) {
+//                        ScheduleEntryWithTimeSlot entry = entriesAtTime.get(i);
+//                    }
+
                     List<ScheduleEntryWithTimeSlot> uniqueEntries = removeDuplicateEntriesWithTimeSlot(entriesAtTime);
-                    
-//                    log.debug("After removing duplicates: {} entries", uniqueEntries.size());
-                    
+
                     if (uniqueEntries.size() > 1) {
                         // Tạo TimeSlot đại diện từ tất cả conflicts thay vì chỉ lấy của entry đầu tiên
                         ScheduleEntry.TimeSlot representativeTimeSlot = createRepresentativeTimeSlot(timeSlotKey, uniqueEntries);
@@ -109,11 +84,7 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
                         List<ScheduleEntry> conflictingSchedules = uniqueEntries.stream()
                                 .map(ewt -> ewt.entry)
                                 .collect(Collectors.toList());
-                        
-//                        log.debug("FINAL CONFLICT - Room: {}, TimeSlot: {}, Entries: {}",
-//                                room, representativeTimeSlot.getDisplayInfo(),
-//                                conflictingSchedules.stream().map(s -> s.getSubjectCode()).collect(Collectors.toList()));
-                        
+
                         ConflictResult.RoomConflict conflict = ConflictResult.RoomConflict.builder()
                                 .room(room)
                                 .timeSlot(representativeTimeSlot)
@@ -125,8 +96,6 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
             }
         }
 
-//        log.debug("=== detectRoomConflicts END ===");
-//        log.debug("Total conflicts found: {}", conflicts.size());
         return conflicts;
     }
 
@@ -134,7 +103,6 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
     public List<ConflictResult.TeacherConflict> detectTeacherConflicts(List<ScheduleEntry> scheduleEntries) {
         List<ConflictResult.TeacherConflict> conflicts = new ArrayList<>();
 
-        // Group by teacher and time slot key
         Map<String, Map<String, List<ScheduleEntryWithTimeSlot>>> teacherTimeMap = new HashMap<>();
 
         for (ScheduleEntry entry : scheduleEntries) {
@@ -186,9 +154,6 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
         return conflicts;
     }
 
-    /**
-     * Remove duplicate entries with time slot that represent the same teaching session
-     */
     private List<ScheduleEntryWithTimeSlot> removeDuplicateEntriesWithTimeSlot(List<ScheduleEntryWithTimeSlot> entries) {
         Map<String, ScheduleEntryWithTimeSlot> uniqueMap = new LinkedHashMap<>();
         
@@ -200,10 +165,7 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
         
         return new ArrayList<>(uniqueMap.values());
     }
-    
-    /**
-     * Tạo TimeSlot đại diện từ SlotKey và danh sách conflicts
-     */
+
     private ScheduleEntry.TimeSlot createRepresentativeTimeSlot(String slotKey, List<ScheduleEntryWithTimeSlot> entries) {
         // Parse SlotKey: "Tuần 1-Thứ 5-1-1-2"
         // parts[0]="Tuần", parts[1]="1", parts[2]="Thứ", parts[3]="5", parts[4]="1", parts[5]="1", parts[6]="2"
@@ -228,10 +190,7 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
         // Fallback: lấy từ entry đầu tiên
         return entries.get(0).timeSlot;
     }
-    
-    /**
-     * Check if a schedule entry is for online class (no room conflict needed)
-     */
+
     private boolean isOnlineClass(ScheduleEntry entry) {
         if (entry.getRoom() == null) return false;
         
@@ -242,9 +201,6 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
                 || room.contains("lms") || building.contains("lms");
     }
 
-    /**
-     * Group room conflicts by pattern (same room, same time but different weeks)
-     */
     private List<ConflictResult.RoomConflict> groupRoomConflictsByPattern(List<ConflictResult.RoomConflict> conflicts) {
         Map<String, List<ConflictResult.RoomConflict>> groupedMap = new HashMap<>();
         
@@ -287,9 +243,6 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
         return result;
     }
 
-    /**
-     * Group teacher conflicts by pattern (same teacher, same time but different weeks)
-     */
     private List<ConflictResult.TeacherConflict> groupTeacherConflictsByPattern(List<ConflictResult.TeacherConflict> conflicts) {
         Map<String, List<ConflictResult.TeacherConflict>> groupedMap = new HashMap<>();
         
@@ -333,9 +286,6 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
         return result;
     }
 
-    /**
-     * Extract week number from date string (e.g., "Tuần 1" -> "1")
-     */
     private String extractWeekNumber(String date) {
         if (date == null) return null;
         

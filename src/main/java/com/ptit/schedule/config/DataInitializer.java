@@ -1,12 +1,16 @@
 package com.ptit.schedule.config;
 
+import com.ptit.schedule.entity.Role;
+import com.ptit.schedule.entity.User;
 import com.ptit.schedule.repository.FacultyRepository;
 import com.ptit.schedule.repository.RoomRepository;
+import com.ptit.schedule.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
@@ -20,6 +24,8 @@ public class DataInitializer implements CommandLineRunner {
     private final DataSource dataSource;
     private final FacultyRepository facultyRepository;
     private final RoomRepository roomRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
     
     @Override
     public void run(String... args) {
@@ -47,9 +53,51 @@ public class DataInitializer implements CommandLineRunner {
                 log.info("Current rooms count: {}", roomRepository.count());
             }
             
+            // Initialize default users (always check)
+//            initializeDefaultUsers();
+            
         } catch (Exception e) {
             log.error("Error during data initialization: {}", e.getMessage(), e);
             // Không throw exception để app vẫn start được
+        }
+    }
+    
+    /**
+     * Khởi tạo users mặc định
+     */
+    private void initializeDefaultUsers() {
+        // Create default admin user if not exists
+        if (!userRepository.existsByUsername("admin")) {
+            User admin = User.builder()
+                    .username("admin")
+                    .email("admin@ptit.edu.vn")
+                    .password(passwordEncoder.encode("admin123"))
+                    .fullName("Administrator")
+                    .role(Role.ADMIN)
+                    .enabled(true)
+                    .build();
+            
+            userRepository.save(admin);
+            log.info("Default admin user created: username=admin, password=admin123");
+        } else {
+            log.info("Admin user already exists, skipping creation.");
+        }
+        
+        // Create default regular user if not exists
+        if (!userRepository.existsByUsername("user")) {
+            User user = User.builder()
+                    .username("user")
+                    .email("user@ptit.edu.vn")
+                    .password(passwordEncoder.encode("user123"))
+                    .fullName("Regular User")
+                    .role(Role.USER)
+                    .enabled(true)
+                    .build();
+            
+            userRepository.save(user);
+            log.info("Default user created: username=user, password=user123");
+        } else {
+            log.info("Regular user already exists, skipping creation.");
         }
     }
     

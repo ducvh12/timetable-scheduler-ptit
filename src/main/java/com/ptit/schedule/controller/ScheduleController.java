@@ -1,35 +1,55 @@
 package com.ptit.schedule.controller;
 
 import com.ptit.schedule.entity.Schedule;
+import com.ptit.schedule.entity.User;
+import com.ptit.schedule.exception.InvalidDataException;
+import com.ptit.schedule.exception.ResourceNotFoundException;
 import com.ptit.schedule.service.ScheduleService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/schedules")
+@RequiredArgsConstructor
 public class ScheduleController {
 
-    @Autowired
-    private ScheduleService scheduleService;
+    private final ScheduleService scheduleService;
 
     @PostMapping("/save-batch")
     public ResponseEntity<String> saveBatch(@RequestBody List<Schedule> schedules) {
+        if (schedules == null || schedules.isEmpty()) {
+            throw new InvalidDataException("Danh sách lịch học không được rỗng");
+        }
+        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User currentUser = (User) authentication.getPrincipal();
+        
+        if (currentUser == null) {
+            throw new ResourceNotFoundException("Không tìm thấy thông tin người dùng");
+        }
+        
+        schedules.forEach(schedule -> schedule.setUser(currentUser));
+        
         scheduleService.saveAll(schedules);
         return ResponseEntity.ok("Đã lưu TKB vào database!");
     }
 
     @GetMapping
-    public ResponseEntity<?> getAllSchedules() {
-        try {
-            List<Schedule> schedules = scheduleService.getAllSchedules();
-            return ResponseEntity.ok(schedules);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body("Error: " + e.getMessage());
+    public ResponseEntity<List<Schedule>> getAllSchedules() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User currentUser = (User) authentication.getPrincipal();
+        
+        if (currentUser == null) {
+            throw new ResourceNotFoundException("Không tìm thấy thông tin người dùng");
         }
+        
+        List<Schedule> schedules = scheduleService.getSchedulesByUserId(currentUser.getId());
+        return ResponseEntity.ok(schedules);
     }
 
     @GetMapping("/subject/{subjectId}")
@@ -52,6 +72,10 @@ public class ScheduleController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteSchedule(@PathVariable Long id) {
+        if (id == null || id <= 0) {
+            throw new InvalidDataException("ID lịch học không hợp lệ");
+        }
+        
         scheduleService.deleteScheduleById(id);
         return ResponseEntity.ok("Đã xóa lịch học!");
     }

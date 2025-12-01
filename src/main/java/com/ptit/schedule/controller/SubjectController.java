@@ -3,11 +3,13 @@ package com.ptit.schedule.controller;
 import com.ptit.schedule.dto.*;
 import com.ptit.schedule.service.ExcelReaderService;
 import com.ptit.schedule.service.SubjectService;
+import com.ptit.schedule.utils.AcademicYearUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Nullable;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.modelmapper.internal.Pair;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 
@@ -47,6 +50,7 @@ public class SubjectController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDir,
+            @RequestParam(required = false) String academicYear,
             @RequestParam(required = false) String semester,
             @RequestParam(required = false) String classYear,
             @RequestParam(required = false) String majorCode,
@@ -56,7 +60,7 @@ public class SubjectController {
             // Validate parameters
             if (page < 0) page = 0;
             if (size <= 0 || size > 100) size = 10; // Limit max size to 100
-
+            academicYear = AcademicYearUtils.resolveAcademicYear(academicYear);
             // Kiểm tra nếu có bất kỳ filter nào
             boolean hasFilters = (semester != null && !semester.trim().isEmpty()) ||
                                (classYear != null && !classYear.trim().isEmpty()) ||
@@ -68,7 +72,7 @@ public class SubjectController {
             if (hasFilters) {
                 // Sử dụng query có filter
                 result = subjectService.getAllSubjectsWithPaginationAndFilters(
-                    page, size, sortBy, sortDir, 
+                    page, size, sortBy, sortDir, academicYear,
                     semester, classYear, majorCode, programType
                 );
             } else {
@@ -156,17 +160,17 @@ public class SubjectController {
         }
     }
 
-    @Operation(summary = "Xóa môn học theo học kỳ", description = "Xóa tất cả môn học theo semester")
+    @Operation(summary = "Xóa môn học theo tên học kỳ", description = "Xóa tất cả môn học theo semesterName")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Xóa thành công")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Không tìm thấy môn học")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Semester không hợp lệ")
-    @DeleteMapping("/semester/{semester}")
-    public ResponseEntity<ApiResponse<Integer>> deleteSubjectsBySemester(@PathVariable String semester) {
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Tên học kỳ không hợp lệ")
+    @DeleteMapping("/semester-name/{semesterName}")
+    public ResponseEntity<ApiResponse<Integer>> deleteSubjectsBySemesterName(@PathVariable String semesterName) {
         try {
-            int deletedCount = subjectService.deleteSubjectsBySemester(semester);
+            int deletedCount = subjectService.deleteSubjectsBySemesterName(semesterName);
             ApiResponse<Integer> response = ApiResponse.success(
                 deletedCount, 
-                "Đã xóa " + deletedCount + " môn học của học kỳ " + semester
+                "Đã xóa " + deletedCount + " môn học của học kỳ " + semesterName
             );
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
@@ -180,17 +184,20 @@ public class SubjectController {
         }
     }
 
-    @Operation(summary = "Xóa tất cả môn học theo học kỳ", description = "Xóa toàn bộ môn học của một học kỳ cụ thể")
+    @Operation(summary = "Xóa môn học theo học kỳ và năm học", description = "Xóa tất cả môn học theo semesterName và academicYear")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Xóa thành công")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Không tìm thấy môn học")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Semester không hợp lệ")
-    @DeleteMapping("/semester/{semester}/all")
-    public ResponseEntity<ApiResponse<Integer>> deleteAllSubjectsBySemester(@PathVariable String semester) {
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Tham số không hợp lệ")
+    @DeleteMapping("/semester-name/{semesterName}/academic-year/{academicYear}")
+    public ResponseEntity<ApiResponse<Integer>> deleteSubjectsBySemesterNameAndAcademicYear(
+            @PathVariable String semesterName,
+            @PathVariable String academicYear) {
         try {
-            int deletedCount = subjectService.deleteAllSubjectsBySemester(semester);
+            int deletedCount = subjectService.deleteSubjectsBySemesterNameAndAcademicYear(semesterName, academicYear);
             ApiResponse<Integer> response = ApiResponse.success(
                 deletedCount, 
-                "Đã xóa tất cả " + deletedCount + " môn học của học kỳ " + semester
+                String.format("Đã xóa %d môn học của học kỳ '%s' năm học '%s'", 
+                    deletedCount, semesterName, academicYear)
             );
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
@@ -208,58 +215,86 @@ public class SubjectController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Upload thành công")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "File không hợp lệ hoặc dữ liệu lỗi")
     @PostMapping("/upload-excel")
-    public ResponseEntity<ApiResponse<Integer>> uploadExcelSubjects(@RequestParam("file") MultipartFile file,
-                                                                     @RequestParam("semester") String semester) {
+    public ResponseEntity<ApiResponse<ExcelImportResult>> uploadExcelSubjects(@RequestParam("file") MultipartFile file,
+                                                                               @RequestParam("semester") String semester) {
         try {
-            // Kiểm tra file
+            // Validate data
             if (file.isEmpty()) {
-                ApiResponse<Integer> response = ApiResponse.badRequest("File không được để trống");
+                ApiResponse<ExcelImportResult> response = ApiResponse.badRequest("File không được để trống");
+                return ResponseEntity.badRequest().body(response);
+            }
+            if (semester.isEmpty()) {
+                ApiResponse<ExcelImportResult> response = ApiResponse.badRequest("Học kỳ không được để trống");
                 return ResponseEntity.badRequest().body(response);
             }
             
-            if (!file.getOriginalFilename().toLowerCase().endsWith(".xlsx")) {
-                ApiResponse<Integer> response = ApiResponse.badRequest("Chỉ chấp nhận file Excel (.xlsx)");
-                return ResponseEntity.badRequest().body(response);
-            }
-            
-            // Đọc dữ liệu từ Excel
-            List<SubjectRequest> subjectRequests = excelReaderService.readSubjectsFromExcel(file, semester);
-            
-            if (subjectRequests.isEmpty()) {
-                ApiResponse<Integer> response = ApiResponse.badRequest("File Excel không có dữ liệu hợp lệ");
+            if (!Objects.requireNonNull(file.getOriginalFilename()).toLowerCase().endsWith(".xlsx")) {
+                ApiResponse<ExcelImportResult> response = ApiResponse.badRequest("Chỉ chấp nhận file Excel (.xlsx)");
                 return ResponseEntity.badRequest().body(response);
             }
 
-            // Tạo subjects
-            int successCount = 0;
+            // Covert semester into semester name and academic year
+            Pair<String, String> splitData = AcademicYearUtils.splitSemesterAndYear(semester);
+            String semesterName = splitData.getLeft();
+            String academicYear = splitData.getRight();
             
-            for (int i = 0; i < subjectRequests.size(); i++) {
+            // Đọc và validate dữ liệu từ Excel (sử dụng method mới)
+            ExcelImportResult result = excelReaderService.readAndValidateSubjectsFromExcel(file, semesterName, academicYear);
+            
+            if (result.getValidSubjects().isEmpty()) {
+                ApiResponse<ExcelImportResult> response = ApiResponse.badRequest("File Excel không có dữ liệu hợp lệ");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // Import các môn học hợp lệ vào database
+            int importedCount = 0;
+            List<String> importErrors = new ArrayList<>();
+            
+            for (int i = 0; i < result.getValidSubjects().size(); i++) {
                 try {
-                    subjectService.createSubject(subjectRequests.get(i));
-                    successCount++;
+                    subjectService.createSubject(result.getValidSubjects().get(i));
+                    importedCount++;
                 } catch (RuntimeException e) {
-                    throw new RuntimeException("Dòng " + (i + 2) + ": " + e.getMessage());
+                    importErrors.add("Lỗi khi lưu môn '" + 
+                        result.getValidSubjects().get(i).getSubjectCode() + "': " + e.getMessage());
                 }
             }
             
-            ApiResponse<Integer> response = ApiResponse.success(
-                successCount,
-                "Tạo thành công " + successCount + " môn học từ file Excel");
+            // Cập nhật result với số lượng thực tế đã import
+            result.setSuccessCount(importedCount);
+            
+            // Thêm các lỗi khi import vào warnings
+            if (!importErrors.isEmpty()) {
+                importErrors.forEach(result::addWarning);
+            }
+            
+            // Build message
+            String message = String.format("Đã import thành công %d môn học", importedCount);
+            if (result.getSkippedCount() > 0) {
+                message += String.format(". Đã bỏ qua %d môn học bị trùng lặp", result.getSkippedCount());
+            }
+            if (!importErrors.isEmpty()) {
+                message += String.format(". Có %d lỗi khi lưu vào database", importErrors.size());
+            }
+            
+            ApiResponse<ExcelImportResult> response = ApiResponse.success(result, message);
             return ResponseEntity.ok(response);
             
         } catch (RuntimeException e) {
-            ApiResponse<Integer> response = ApiResponse.badRequest("Lỗi xử lý file: " + e.getMessage());
+            ApiResponse<ExcelImportResult> response = ApiResponse.badRequest("Lỗi xử lý file: " + e.getMessage());
             return ResponseEntity.badRequest().body(response);
         }
     }
 
     @Operation(
             summary = "Lấy danh sách môn học và ngành theo khóa",
-            description = "Truyền classYear và programType để lấy danh sách môn học và ngành tương ứng"
+            description = "Truyền semesterName, academicYear, classYear, programType và majorCodes để lấy danh sách môn học và ngành tương ứng"
     )
     @GetMapping("/majors")
     public ResponseEntity<ApiResponse<List<SubjectMajorDTO>>> getSubjectsAndMajorByMajorCodes(
-            @Nullable @RequestParam String classYear,
+            @RequestParam String semesterName,
+            @RequestParam String academicYear,
+            @RequestParam String classYear,
             @RequestParam String programType,
             @Nullable @RequestParam List<String> majorCodes) {
         try {
@@ -267,9 +302,11 @@ public class SubjectController {
 //                System.out.println(majorCode);
 //            }
             List<SubjectMajorDTO> subjects =
-                    subjectService.getSubjectAndMajorCodeByClassYear(classYear, programType, majorCodes);
+                    subjectService.getSubjectAndMajorCodeByClassYear(
+                        semesterName, academicYear, classYear, programType, majorCodes
+                    );
             if(programType.equals("Chung")){
-                subjects = subjectService.getCommonSubjects();
+                subjects = subjectService.getCommonSubjects(semesterName, academicYear);
             }
             ApiResponse<List<SubjectMajorDTO>> response =
                     ApiResponse.success(subjects, "Lấy danh sách môn học và ngành theo khóa thành công");
@@ -283,16 +320,22 @@ public class SubjectController {
 
     @Operation(
             summary = "Lấy danh sách nhóm ngành học chung môn",
-            description = "Truyền classYear và programType để lấy danh sách nhóm ngành có môn học chung"
+            description = "Truyền semesterName, academicYear, classYear và programType để lấy danh sách nhóm ngành có môn học chung"
     )
     @GetMapping("/group-majors")
     public ResponseEntity<ApiResponse<List<Set<String>>>> getGroupedMajors(
+            @RequestParam String semesterName,
+            @RequestParam String academicYear,
             @RequestParam String classYear,
             @RequestParam String programType) {
         try {
+            System.out.println("semesterName: " + semesterName);
+            System.out.println("academicYear: " + academicYear);
             System.out.println("classYear: " + classYear);
             System.out.println("programType: " + programType);
-            List<Set<String>> groupedMajors = subjectService.groupMajorsBySharedSubjects(classYear, programType);
+            List<Set<String>> groupedMajors = subjectService.groupMajorsBySharedSubjects(
+                semesterName, academicYear, classYear, programType
+            );
 
             if (groupedMajors == null || groupedMajors.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -308,14 +351,16 @@ public class SubjectController {
 
 
     @Operation(
-            summary = "Lấy danh sách môn chung ",
-            description = "Trả về các môn học chung như Anh văn, Chính trị, Kỹ năng mềm."
+            summary = "Lấy danh sách môn chung",
+            description = "Trả về các môn học chung như Anh văn, Chính trị, Kỹ năng mềm theo semester và academic year"
     )
     @GetMapping("/common-subjects")
     public ResponseEntity<ApiResponse<List<SubjectMajorDTO>>> getCommonSubjects(
+            @RequestParam String semesterName,
+            @RequestParam String academicYear
           ) {
         try {
-            List<SubjectMajorDTO> commonSubjects = subjectService.getCommonSubjects();
+            List<SubjectMajorDTO> commonSubjects = subjectService.getCommonSubjects(semesterName, academicYear);
 
             if (commonSubjects == null || commonSubjects.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -331,13 +376,25 @@ public class SubjectController {
 
     @Operation(
             summary = "Lấy tất cả các hệ đào tạo",
-            description = "Trả về danh sách distinct program types"
+            description = "Trả về danh sách distinct program types. Có thể filter theo semester và academicYear"
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Thành công")
     @GetMapping("/program-types")
-    public ResponseEntity<ApiResponse<List<String>>> getAllProgramTypes() {
+    public ResponseEntity<ApiResponse<List<String>>> getAllProgramTypes(
+            @RequestParam(required = false) String semester,
+            @RequestParam(required = false) String academicYear
+    ) {
         try {
-            List<String> programTypes = subjectService.getAllProgramTypes();
+            List<String> programTypes;
+            
+            if (semester != null && academicYear != null) {
+                // Filter by semester and academic year
+                programTypes = subjectService.getProgramTypesBySemesterAndAcademicYear(semester, academicYear);
+            } else {
+                // Get all program types
+                programTypes = subjectService.getAllProgramTypes();
+            }
+            
             ApiResponse<List<String>> response = ApiResponse.success(
                 programTypes, 
                 "Lấy danh sách hệ đào tạo thành công"
@@ -351,13 +408,28 @@ public class SubjectController {
 
     @Operation(
             summary = "Lấy tất cả các khóa học",
-            description = "Trả về danh sách distinct class years"
+            description = "Trả về danh sách distinct class years. Có thể filter theo semester, academicYear và programType"
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Thành công")
     @GetMapping("/class-years")
-    public ResponseEntity<ApiResponse<List<String>>> getAllClassYears() {
+    public ResponseEntity<ApiResponse<List<String>>> getAllClassYears(
+            @RequestParam(required = false) String semester,
+            @RequestParam(required = false) String academicYear,
+            @RequestParam(required = false) String programType
+    ) {
         try {
-            List<String> classYears = subjectService.getAllClassYears();
+            List<String> classYears;
+            
+            if (semester != null && academicYear != null && programType != null) {
+                // Filter by semester, academic year and program type
+                classYears = subjectService.getClassYearsBySemesterAndAcademicYearAndProgramType(
+                    semester, academicYear, programType
+                );
+            } else {
+                // Get all class years
+                classYears = subjectService.getAllClassYears();
+            }
+            
             ApiResponse<List<String>> response = ApiResponse.success(
                 classYears, 
                 "Lấy danh sách khóa học thành công"

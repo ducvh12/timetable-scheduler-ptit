@@ -23,6 +23,7 @@ public interface SubjectService {
         int size, 
         String sortBy, 
         String sortDir,
+        String academicYear,
         String semester,
         String classYear,
         String majorCode,
@@ -32,14 +33,25 @@ public interface SubjectService {
     // Lấy subjects theo major ID
     List<SubjectResponse> getSubjectsByMajorId(Integer majorId);
 
-    // Lấy subject kèm mã ngành theo năm học và loại chương trình
-    List<SubjectMajorDTO> getSubjectAndMajorCodeByClassYear(String classYear, String programType, List<String> majorCodes);
+    // Lấy subject kèm mã ngành theo semester, academic year, class year, program type và major codes
+    List<SubjectMajorDTO> getSubjectAndMajorCodeByClassYear(
+        String semesterName,
+        String academicYear,
+        String classYear,
+        String programType,
+        List<String> majorCodes
+    );
 
-    // Nhóm các ngành có cùng tập môn học chung
-    List<Set<String>> groupMajorsBySharedSubjects(String classYear, String programType);
+    // Nhóm các ngành có cùng tập môn học chung theo semester, academic year, class year và program type
+    List<Set<String>> groupMajorsBySharedSubjects(
+        String semesterName,
+        String academicYear,
+        String classYear,
+        String programType
+    );
 
-    // Lấy danh sách môn học chung
-    List<SubjectMajorDTO> getCommonSubjects();
+    // Lấy danh sách môn học chung theo semester và academic year
+    List<SubjectMajorDTO> getCommonSubjects(String semesterName, String academicYear);
 
     // Tạo subject mới
     SubjectResponse createSubject(SubjectRequest request);
@@ -50,15 +62,21 @@ public interface SubjectService {
     // Xóa subject theo ID
     void deleteSubject(Long id);
 
-    // Xóa subjects theo semester
-    int deleteSubjectsBySemester(String semester);
+    // Xóa subjects theo semesterName
+    int deleteSubjectsBySemesterName(String semesterName);
 
-    // Xóa tất cả subjects theo semester
-    int deleteAllSubjectsBySemester(String semester);
+    // Xóa subjects theo semesterName và academicYear
+    int deleteSubjectsBySemesterNameAndAcademicYear(String semesterName, String academicYear);
 
     // Lấy tất cả program types (distinct)
     List<String> getAllProgramTypes();
 
+    // Lấy program types theo semester và academic year
+    List<String> getProgramTypesBySemesterAndAcademicYear(String semesterName, String academicYear);
+
     // Lấy tất cả class years (distinct)
     List<String> getAllClassYears();
+
+    // Lấy class years theo semester, academic year và program type
+    List<String> getClassYearsBySemesterAndAcademicYearAndProgramType(String semesterName, String academicYear, String programType);
 }
