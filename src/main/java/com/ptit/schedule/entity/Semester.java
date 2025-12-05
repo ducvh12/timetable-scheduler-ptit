@@ -13,6 +13,7 @@ import java.util.List;
 @Data
 @Table(name = "semesters", 
     uniqueConstraints = @UniqueConstraint(columnNames = {"semester_name", "academic_year"}))
+    // Không cần thêm index vì uniqueConstraint đã tự động tạo index
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

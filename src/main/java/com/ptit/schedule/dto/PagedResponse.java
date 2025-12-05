@@ -17,4 +17,14 @@ public class PagedResponse<T> {
     private int size;
     private long totalElements;
     private int totalPages;
+
+    public static <T> PagedResponse<T> of(List<T> items, int page, int size, long totalElements, int totalPages) {
+        return PagedResponse.<T>builder()
+                .items(items)
+                .page(page)
+                .size(size)
+                .totalElements(totalElements)
+                .totalPages(totalPages)
+                .build();
+    }
 }

@@ -10,7 +10,10 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 @Entity
-@Table(name = "majors")
+@Table(name = "majors", indexes = {
+    // Composite index cho majorCode + classYear (unique constraint tự nhiên, thường filter cùng lúc)
+    @Index(name = "idx_major_class_year", columnList = "major_code, class_year")
+})
 @Data
 @Builder
 @NoArgsConstructor

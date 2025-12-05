@@ -8,7 +8,15 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Data
-@Table(name = "subjects")
+@Table(name = "subjects", indexes = {
+    // Index cho search (LIKE query) - Quan trọng nhất
+    @Index(name = "idx_subject_code", columnList = "subject_code"),
+    @Index(name = "idx_subject_name", columnList = "subject_name"),
+    
+    // Composite index cho JOIN nhanh và filter thường dùng nhất
+    // Covers: semester filter + major filter cùng lúc
+    @Index(name = "idx_semester_major", columnList = "semester_id, major_id")
+})
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

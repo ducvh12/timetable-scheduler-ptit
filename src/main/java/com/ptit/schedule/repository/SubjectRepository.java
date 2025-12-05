@@ -4,6 +4,7 @@ import com.ptit.schedule.dto.SubjectMajorDTO;
 import com.ptit.schedule.entity.Subject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -19,6 +20,8 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     
     // Tìm tất cả subject theo major
     List<Subject> findByMajorId(Integer majorId);
+
+    Page<Subject> findAll(Specification<Subject> spec, Pageable pageable);
 
     /**
      * Tìm subject theo subjectCode, majorCode, semesterName, academicYear và classYear

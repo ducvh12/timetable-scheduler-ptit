@@ -7,11 +7,14 @@ import com.ptit.schedule.exception.InvalidDataException;
 import com.ptit.schedule.exception.ResourceNotFoundException;
 import com.ptit.schedule.repository.*;
 import com.ptit.schedule.service.SubjectService;
+import com.ptit.schedule.specification.SubjectSpecification;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +24,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Log4j2
 public class SubjectServiceImpl implements SubjectService {
     
     private final SubjectRepository subjectRepository;
@@ -63,6 +67,29 @@ public class SubjectServiceImpl implements SubjectService {
         } catch (Exception e) {
             throw new RuntimeException("Lỗi khi lấy danh sách môn học với phân trang: " + e.getMessage());
         }
+    }
+
+    @Override
+    public Page<SubjectFullDTO> getSubjects(String search, String semester, String classYear, String majorCode,
+                                             String programType, String academicYear, Pageable pageable) {
+        log.info("Searching subjects - search: '{}', semester: {}, classYear: {}, majorCode: {}, programType: {}, academicYear: {}",
+                search, semester, classYear, majorCode, programType, academicYear);
+
+        // Build specification với tất cả filters
+        Specification<Subject> spec = SubjectSpecification.hasSearch(search)
+                .and(SubjectSpecification.hasSemester(semester))
+                .and(SubjectSpecification.hasClassYear(classYear))
+                .and(SubjectSpecification.hasMajor(majorCode))
+                .and(SubjectSpecification.hasProgramType(programType))
+                .and(SubjectSpecification.hasAcademicYear(academicYear));
+
+        // Execute query với specification và pageable
+        Page<Subject> subjects = subjectRepository.findAll(spec, pageable);
+
+        log.info("Found {} subjects matching criteria", subjects.getTotalElements());
+
+        // Convert to DTOs
+        return subjects.map(SubjectFullDTO::fromEntity);
     }
 
     /**

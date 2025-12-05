@@ -5,6 +5,7 @@ import com.ptit.schedule.dto.SubjectMajorDTO;
 import com.ptit.schedule.dto.SubjectRequest;
 import com.ptit.schedule.dto.SubjectResponse;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Set;
@@ -16,6 +17,17 @@ public interface SubjectService {
 
     // Lấy tất cả subjects với phân trang
     Page<SubjectFullDTO> getAllSubjectsWithPagination(int page, int size, String sortBy, String sortDir);
+
+    // Lấy tất cả subject phân trang dùng specification
+    Page<SubjectFullDTO> getSubjects(
+            String search,
+            String semester,
+            String classYear,
+            String majorCode,
+            String programType,
+            String academicYear,
+            Pageable pageable
+    );
 
     // Lấy tất cả subjects với phân trang và filter
     Page<SubjectFullDTO> getAllSubjectsWithPaginationAndFilters(

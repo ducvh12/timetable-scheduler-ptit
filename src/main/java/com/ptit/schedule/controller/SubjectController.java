@@ -11,15 +11,15 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.internal.Pair;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 
 @RestController
@@ -46,6 +46,7 @@ public class SubjectController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Thành công")
     @GetMapping("")
     public ResponseEntity<ApiResponse<PagedResponse<SubjectFullDTO>>> getAllSubjectsPaginated(
+            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
@@ -67,28 +68,27 @@ public class SubjectController {
                                (majorCode != null && !majorCode.trim().isEmpty()) ||
                                (programType != null && !programType.trim().isEmpty());
 
-            Page<SubjectFullDTO> result;
-            
-            if (hasFilters) {
-                // Sử dụng query có filter
-                result = subjectService.getAllSubjectsWithPaginationAndFilters(
-                    page, size, sortBy, sortDir, academicYear,
-                    semester, classYear, majorCode, programType
-                );
-            } else {
-                // Sử dụng query không có filter (performance tốt hơn)
-                result = subjectService.getAllSubjectsWithPagination(page, size, sortBy, sortDir);
-            }
+            Sort sort = sortDir.equalsIgnoreCase("desc")
+                    ? Sort.by(sortBy).descending()
+                    : Sort.by(sortBy).ascending();
 
-            PagedResponse<SubjectFullDTO> pagedResponse = PagedResponse.<SubjectFullDTO>builder()
-                    .page(result.getNumber())
-                    .items(result.getContent().stream().toList())
-                    .totalPages(result.getTotalPages())
-                    .size(result.getSize())
-                    .totalElements(result.getTotalElements())
-                    .build();
+            Pageable pageable = PageRequest.of(page, size, sort);
+
+            Page<SubjectFullDTO> subjectPage = subjectService.getSubjects(
+                    search, semester, classYear, majorCode, programType, academicYear, pageable
+            );
+
+            // Build PagedResponse
+            PagedResponse<SubjectFullDTO> pagedResponse = PagedResponse.of(
+                    subjectPage.getContent(),
+                    subjectPage.getNumber(),
+                    subjectPage.getSize(),
+                    subjectPage.getTotalElements(),
+                    subjectPage.getTotalPages()
+            );
+
             return ResponseEntity.ok(
-                ApiResponse.success(pagedResponse, "Lấy danh sách môn học với phân trang thành công")
+                    ApiResponse.success(pagedResponse, "Lấy danh sách môn học thành công")
             );
         } catch (RuntimeException e) {
             ApiResponse<PagedResponse<SubjectFullDTO>> response = ApiResponse.badRequest(e.getMessage());
