@@ -5,7 +5,6 @@ import com.ptit.schedule.entity.User;
 import com.ptit.schedule.exception.InvalidDataException;
 import com.ptit.schedule.exception.ResourceNotFoundException;
 import com.ptit.schedule.service.ScheduleService;
-import com.ptit.schedule.service.TimetableSchedulingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -20,7 +19,6 @@ import java.util.List;
 public class ScheduleController {
 
     private final ScheduleService scheduleService;
-    private final TimetableSchedulingService timetableSchedulingService;
 
     @PostMapping("/save-batch")
     public ResponseEntity<String> saveBatch(@RequestBody List<Schedule> schedules) {
@@ -46,7 +44,7 @@ public class ScheduleController {
             String semester = firstSchedule.getSemester();
             
             if (academicYear != null && semester != null) {
-                timetableSchedulingService.commitSessionToRedis(currentUser.getId(), academicYear, semester);
+                scheduleService.commitSessionToRedis(currentUser.getId(), academicYear, semester);
                 System.out.println("✅ [ScheduleController] Auto-committed lastSlotIdx to Redis after saving schedules");
             }
         }

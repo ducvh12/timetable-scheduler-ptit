@@ -3,7 +3,7 @@ package com.ptit.schedule.controller;
 import com.ptit.schedule.dto.*;
 import com.ptit.schedule.entity.User;
 import com.ptit.schedule.exception.InvalidDataException;
-import com.ptit.schedule.service.TimetableSchedulingService;
+import com.ptit.schedule.service.ScheduleService;
 import com.ptit.schedule.service.DataLoaderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,7 +23,7 @@ import java.util.Map;
 @Tag(name = "TKB Controller", description = "APIs for timetable generation")
 public class TKBController {
 
-    private final TimetableSchedulingService timetableSchedulingService;
+    private final ScheduleService scheduleService;
     private final DataLoaderService dataLoaderService;
 
     @Operation(summary = "Generate TKB for batch subjects", description = "Tạo thời khóa biểu cho nhiều môn học")
@@ -42,7 +42,7 @@ public class TKBController {
             }
         }
         
-        TKBBatchResponse response = timetableSchedulingService.simulateExcelFlowBatch(request);
+        TKBBatchResponse response = scheduleService.simulateExcelFlowBatch(request);
         return ResponseEntity.ok(response);
     }
 
@@ -68,7 +68,7 @@ public class TKBController {
     @Operation(summary = "Reset TKB state", description = "Reset global scheduling state")
     @PostMapping("/reset")
     public ResponseEntity<Map<String, Object>> resetState() {
-        timetableSchedulingService.resetState();
+        scheduleService.resetState();
         Map<String, Object> response = new HashMap<>();
         response.put("status", "success");
         response.put("message", "TKB state reset successfully");
@@ -97,7 +97,7 @@ public class TKBController {
                 .items(Collections.singletonList(commonSubjectRequest))
                 .build();
 
-        TKBBatchResponse response = timetableSchedulingService.simulateExcelFlowBatch(batchRequest);
+        TKBBatchResponse response = scheduleService.simulateExcelFlowBatch(batchRequest);
 
         boolean hasRoomAssigned = response.getItems().stream()
                 .flatMap(item -> item.getRows().stream())
@@ -149,7 +149,7 @@ public class TKBController {
             @RequestParam String academicYear,
             @RequestParam String semester) {
         
-        timetableSchedulingService.commitSessionToRedis(userId, academicYear, semester);
+        scheduleService.commitSessionToRedis(userId, academicYear, semester);
 
         Map<String, Object> result = new HashMap<>();
         result.put("userId", userId);
@@ -171,7 +171,7 @@ public class TKBController {
             @RequestParam String academicYear,
             @RequestParam String semester) {
         
-        timetableSchedulingService.resetOccupiedRoomsRedis(userId, academicYear, semester);
+        scheduleService.resetOccupiedRoomsRedis(userId, academicYear, semester);
 
         Map<String, Object> result = new HashMap<>();
         result.put("userId", userId);

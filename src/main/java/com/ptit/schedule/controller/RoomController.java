@@ -8,7 +8,7 @@ import com.ptit.schedule.dto.RoomBulkStatusUpdateRequest;
 import com.ptit.schedule.entity.RoomStatus;
 import com.ptit.schedule.entity.RoomType;
 import com.ptit.schedule.service.RoomService;
-import com.ptit.schedule.service.TimetableSchedulingService;
+import com.ptit.schedule.service.ScheduleService;
 import com.ptit.schedule.service.SubjectRoomMappingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,7 @@ import java.util.Map;
 public class RoomController {
 
     private final RoomService roomService;
-    private final TimetableSchedulingService timetableSchedulingService;
+    private final ScheduleService scheduleService;
     private final SubjectRoomMappingService subjectRoomMappingService;
 
     @GetMapping
@@ -176,7 +176,7 @@ public class RoomController {
             @RequestParam(required = false) String semester
     ) {
         try {
-            timetableSchedulingService.commitSessionToRedis(userId, academicYear, semester);
+            scheduleService.commitSessionToRedis(userId, academicYear, semester);
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Đã lưu kết quả TKB vào hệ thống!");
@@ -193,7 +193,7 @@ public class RoomController {
     @GetMapping("/occupied-info")
     public ResponseEntity<Map<String, Object>> getOccupiedRoomsInfo() {
         try {
-            Map<String, Integer> info = timetableSchedulingService.getOccupiedRoomsInfo();
+            Map<String, Integer> info = scheduleService.getOccupiedRoomsInfo();
 
             Map<String, Object> response = new HashMap<>();
             response.put("status", "success");
@@ -213,9 +213,9 @@ public class RoomController {
     @PostMapping("/reset")
     public ResponseEntity<Map<String, Object>> resetOccupiedRooms() {
         try {
-            Map<String, Integer> beforeInfo = timetableSchedulingService.getOccupiedRoomsInfo();
+            Map<String, Integer> beforeInfo = scheduleService.getOccupiedRoomsInfo();
 
-            timetableSchedulingService.resetOccupiedRooms();
+            scheduleService.resetOccupiedRooms();
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Đã reset phòng đã sử dụng! Tất cả phòng có thể sử dụng lại.");
