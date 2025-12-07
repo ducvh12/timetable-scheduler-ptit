@@ -15,7 +15,7 @@ public class RoomRequest {
 
     @NotBlank(message = "Số phòng không được để trống")
     @Size(max = 10, message = "Số phòng không được vượt quá 10 ký tự")
-    private String phong;
+    private String name; // Renamed from phong
 
     @NotNull(message = "Sức chứa không được để trống")
     @Min(value = 1, message = "Sức chứa phải lớn hơn 0")
@@ -24,11 +24,28 @@ public class RoomRequest {
 
     @NotBlank(message = "Tòa nhà không được để trống")
     @Size(max = 10, message = "Tòa nhà không được vượt quá 10 ký tự")
-    private String day;
+    private String building; // Renamed from day
 
     @NotNull(message = "Loại phòng không được để trống")
     private RoomType type;
 
     @Size(max = 1000, message = "Ghi chú không được vượt quá 1000 ký tự")
     private String note;
+
+    // Backward compatibility getters/setters
+    public String getPhong() {
+        return this.name;
+    }
+
+    public void setPhong(String phong) {
+        this.name = phong;
+    }
+
+    public String getDay() {
+        return this.building;
+    }
+
+    public void setDay(String day) {
+        this.building = day;
+    }
 }

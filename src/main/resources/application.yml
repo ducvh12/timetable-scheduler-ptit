@@ -9,16 +9,23 @@ spring:
   datasource:
     url: ${DATABASE_URL:jdbc:mysql://localhost:3306/schedule?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8}
     username: ${DATABASE_USERNAME:root}
-    password: ${DATABASE_PASSWORD:123}
+    password: ${DATABASE_PASSWORD:123456}
 
   jpa:
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:update} # create-drop, create, update, validate, none
+      ddl-auto: ${JPA_DDL_AUTO:update} # validate để Flyway quản lý schema
     show-sql: ${JPA_SHOW_SQL:false}
     properties:
       hibernate:
         dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.MySQL8Dialect}
         format_sql: ${HIBERNATE_FORMAT_SQL:true}
+
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: ${FLYWAY_BASELINE_VERSION:0}
+    locations: ${FLYWAY_LOCATIONS:classpath:db/migration}
+    validate-on-migrate: ${FLYWAY_VALIDATE_ON_MIGRATE:true}
 
   sql:
     init:

@@ -7,6 +7,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "rooms")
 @Data
@@ -19,10 +22,10 @@ public class Room {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // Auto-increment primary key
 
-    @Column(name = "phong", nullable = false)
+    @Column(name = "name", nullable = false)
     @NotBlank(message = "Số phòng không được để trống")
     @Size(max = 10, message = "Số phòng không được vượt quá 10 ký tự")
-    private String phong; // Số phòng
+    private String name; // Số phòng (renamed from phong)
 
     @Column(name = "capacity", nullable = false)
     @NotNull(message = "Sức chứa không được để trống")
@@ -33,7 +36,7 @@ public class Room {
     @Column(name = "building", nullable = false)
     @NotBlank(message = "Tòa nhà không được để trống")
     @Size(max = 10, message = "Tòa nhà không được vượt quá 10 ký tự")
-    private String day; // Tòa nhà (A1, A2, A3, NT)
+    private String building; // Tòa nhà (A1, A2, A3, NT) (renamed from day)
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false)
@@ -49,4 +52,8 @@ public class Room {
     @Column(name = "note", length = 1000)
     @Size(max = 1000, message = "Ghi chú không được vượt quá 1000 ký tự")
     private String note; // Ghi chú
+
+    @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<RoomOccupancy> occupancies = new ArrayList<>(); // Room occupation records
 }
