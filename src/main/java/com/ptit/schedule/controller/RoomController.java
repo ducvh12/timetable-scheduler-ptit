@@ -170,10 +170,13 @@ public class RoomController {
     }
 
     @PostMapping("/save-results")
-    public ResponseEntity<Map<String, Object>> saveResults() {
+    public ResponseEntity<Map<String, Object>> saveResults(
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String academicYear,
+            @RequestParam(required = false) String semester
+    ) {
         try {
-
-            timetableSchedulingService.commitSessionToGlobal();
+            timetableSchedulingService.commitSessionToRedis(userId, academicYear, semester);
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Đã lưu kết quả TKB vào hệ thống!");

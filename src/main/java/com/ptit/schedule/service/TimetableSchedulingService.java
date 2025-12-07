@@ -21,8 +21,9 @@ public class TimetableSchedulingService {
     private final DataLoaderService dataLoaderService;
     private final RoomService roomService;
     private final SubjectRoomMappingService subjectRoomMappingService;
+    private final RedisOccupiedRoomService redisOccupiedRoomService;
 
-    private Set<Object> sessionOccupiedRooms = new HashSet<>();
+    private Set<String> sessionOccupiedRooms = new HashSet<>();
 
     private static final List<TimetableSlot> ROTATING_SLOTS = Arrays.asList(
             new TimetableSlot(2, "sang"), new TimetableSlot(3, "chieu"),
@@ -50,14 +51,7 @@ public class TimetableSchedulingService {
     private int lastSlotIdx = -1;
     private int sessionLastSlotIdx = -1;
 
-    /**
-     * Khởi tạo service và load trạng thái từ file
-     */
-    @PostConstruct
-    public void init() {
-        lastSlotIdx = dataLoaderService.loadLastSlotIdx();
-        sessionLastSlotIdx = lastSlotIdx;
-    }
+
 
     /**
      * Tạo thời khóa biểu cho danh sách môn học
@@ -68,14 +62,42 @@ public class TimetableSchedulingService {
             throw new InvalidDataException("Template data empty or not exists");
         }
 
+        // Lấy thông tin từ request
+        Long userId = request.getUserId();
+        
+        // Lấy academicYear và semester từ item đầu tiên (vì tất cả items cùng học kỳ, năm học)
+        String academicYear = request.getAcademicYear();
+        String semester = request.getSemester();
+        
+        if ((academicYear == null || semester == null) && !request.getItems().isEmpty()) {
+            TKBRequest firstItem = request.getItems().get(0);
+            academicYear = firstItem.getAcademic_year();
+            semester = firstItem.getSemester();
+        }
+        
+        System.out.println("📋 [TimetableSchedulingService] Request Info:");
+        System.out.println("   - userId: " + userId);
+        System.out.println("   - academicYear: " + academicYear);
+        System.out.println("   - semester: " + semester);
+
         List<Room> rooms = loadRooms();
-        Set<Object> occupiedRooms = initializeOccupiedRooms();
+        Set<Object> occupiedRooms = initializeOccupiedRooms(userId, academicYear, semester);
         
         List<TKBBatchItemResponse> itemsOut = new ArrayList<>();
         int totalRows = 0;
         int totalClasses = 0;
         
+        // Load lastSlotIdx từ Redis
+        if (userId != null && academicYear != null && semester != null) {
+            lastSlotIdx = redisOccupiedRoomService.loadLastSlotIdx(userId, academicYear, semester);
+            System.out.println("✅ [TimetableSchedulingService] Load lastSlotIdx từ REDIS: " + lastSlotIdx + 
+                             " (key: " + userId + ":" + academicYear + ":" + semester + ")");
+        } else {
+            System.out.println("⚠️ [TimetableSchedulingService] Cannot load lastSlotIdx: userId/academicYear/semester null. Using -1");
+            lastSlotIdx = -1;
+        }
         sessionLastSlotIdx = lastSlotIdx;
+        
         List<TKBRequest> sortedItems = sortSubjectsByPeriods(request.getItems());
 
         for (TKBRequest tkbRequest : sortedItems) {
@@ -103,10 +125,11 @@ public class TimetableSchedulingService {
                 .collect(Collectors.toList());
     }
 
-    private Set<Object> initializeOccupiedRooms() {
+    private Set<Object> initializeOccupiedRooms(Long userId, String academicYear, String semester) {
         sessionOccupiedRooms.clear();
         subjectRoomMappingService.clearMappings();
         
+        // Load occupied rooms từ file (không đổi logic này)
         Set<Object> globalOccupiedRooms = dataLoaderService.loadGlobalOccupiedRooms();
         return new HashSet<>(globalOccupiedRooms);
     }
@@ -159,23 +182,29 @@ public class TimetableSchedulingService {
     }
 
     /**
-     * Lưu dữ liệu phòng đã sử dụng từ session vào global storage
+     * Lưu lastSlotIdx vào Redis (occupied rooms vẫn lưu vào file)
      */
-    public void commitSessionToGlobal() {
-        if (sessionOccupiedRooms.isEmpty()) {
-            return;
+    public void commitSessionToRedis(Long userId, String academicYear, String semester) {
+        // Save occupied rooms to file (không đổi)
+        if (!sessionOccupiedRooms.isEmpty()) {
+            Set<Object> globalOccupied = dataLoaderService.loadGlobalOccupiedRooms();
+            globalOccupied.addAll(sessionOccupiedRooms);
+            dataLoaderService.saveGlobalOccupiedRooms(globalOccupied);
+            sessionOccupiedRooms.clear();
         }
 
-        Set<Object> globalOccupied = dataLoaderService.loadGlobalOccupiedRooms();
-        globalOccupied.addAll(sessionOccupiedRooms);
+        // Save lastSlotIdx to Redis
+        if (userId != null && academicYear != null && semester != null) {
+            redisOccupiedRoomService.saveLastSlotIdx(userId, academicYear, semester, sessionLastSlotIdx);
+            System.out.println("✅ [TimetableSchedulingService] Save lastSlotIdx vào REDIS: " + sessionLastSlotIdx + 
+                             " (key: " + userId + ":" + academicYear + ":" + semester + ")");
+        } else {
+            System.out.println("⚠️ [TimetableSchedulingService] Cannot save lastSlotIdx: userId/academicYear/semester null");
+        }
 
-        dataLoaderService.saveGlobalOccupiedRooms(globalOccupied);
         lastSlotIdx = sessionLastSlotIdx;
-        dataLoaderService.saveLastSlotIdx(lastSlotIdx);
-
-        sessionOccupiedRooms.clear();
     }
-
+    
     /**
      * Tính tổng số tiết dạy trong một row
      */
@@ -468,14 +497,17 @@ public class TimetableSchedulingService {
         sessionLastSlotIdx = -1;
     }
 
+
+
     /**
-     * Reset chỉ số slot về -1
+     * Reset lastSlotIdx trong Redis
      */
-    public void resetLastSlotIdx() {
+    public void resetOccupiedRoomsRedis(Long userId, String academicYear, String semester) {
+        if (userId != null && academicYear != null && semester != null) {
+            redisOccupiedRoomService.clearLastSlotIdx(userId, academicYear, semester);
+        }
         lastSlotIdx = -1;
         sessionLastSlotIdx = -1;
-
-        dataLoaderService.saveLastSlotIdx(-1);
     }
 
     /**

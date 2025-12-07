@@ -234,64 +234,9 @@ public class DataLoaderService {
         }
     }
 
-    /**
-     * Load lastSlotIdx from last_slot_idx.json
-     * Returns -1 if file doesn't exist or on error
-     */
-    public int loadLastSlotIdx() {
-        try {
-            ClassPathResource resource = new ClassPathResource("last_slot_idx.json");
-            if (resource.exists()) {
-                Map<String, Integer> data = objectMapper.readValue(resource.getInputStream(),
-                        new com.fasterxml.jackson.core.type.TypeReference<Map<String, Integer>>() {
-                        });
-                int lastSlotIdx = data.getOrDefault("lastSlotIdx", -1);
-                log.info("Loaded lastSlotIdx: {}", lastSlotIdx);
-                return lastSlotIdx;
-            }
-        } catch (Exception e) {
-            log.warn("Could not load last_slot_idx.json, using default -1", e);
-        }
-        return -1;
-    }
 
-    /**
-     * Save lastSlotIdx to last_slot_idx.json
-     * Saves to both target/classes and src/main/resources for persistence
-     */
-    public void saveLastSlotIdx(int lastSlotIdx) {
-        try {
-            log.info("Saving lastSlotIdx: {} to last_slot_idx.json", lastSlotIdx);
 
-            Map<String, Integer> data = new HashMap<>();
-            data.put("lastSlotIdx", lastSlotIdx);
 
-            // Try to save to both target/classes and src/main/resources
-            try {
-                // Save to target/classes (for current runtime)
-                ClassPathResource resource = new ClassPathResource("last_slot_idx.json");
-                String targetPath = resource.getFile().getAbsolutePath();
-                objectMapper.writerWithDefaultPrettyPrinter().writeValue(new java.io.File(targetPath), data);
-                log.info("Saved lastSlotIdx to target: {}", targetPath);
-
-                // Also save to src/main/resources (for persistence across rebuilds)
-                String projectRoot = System.getProperty("user.dir");
-                String srcPath = projectRoot + "/src/main/resources/last_slot_idx.json";
-                objectMapper.writerWithDefaultPrettyPrinter().writeValue(new java.io.File(srcPath), data);
-                log.info("Saved lastSlotIdx to source: {}", srcPath);
-
-            } catch (Exception e) {
-                // If above fails, just save to working directory as fallback
-                String fallbackPath = System.getProperty("user.dir") + "/last_slot_idx.json";
-                objectMapper.writerWithDefaultPrettyPrinter().writeValue(new java.io.File(fallbackPath), data);
-                log.info("Saved lastSlotIdx to fallback location: {}", fallbackPath);
-            }
-
-            log.info("Successfully saved lastSlotIdx");
-        } catch (Exception e) {
-            log.error("Error saving lastSlotIdx", e);
-        }
-    }
 
     /**
      * Import data from Excel file and overwrite real.json

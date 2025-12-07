@@ -1,6 +1,7 @@
 package com.ptit.schedule.controller;
 
 import com.ptit.schedule.dto.*;
+import com.ptit.schedule.entity.User;
 import com.ptit.schedule.exception.InvalidDataException;
 import com.ptit.schedule.service.TimetableSchedulingService;
 import com.ptit.schedule.service.DataLoaderService;
@@ -8,6 +9,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
@@ -28,6 +31,15 @@ public class TKBController {
     public ResponseEntity<TKBBatchResponse> generateTKBBatch(@RequestBody TKBBatchRequest request) {
         if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
             throw new InvalidDataException("Danh sách môn học không được rỗng");
+        }
+        
+        // Lấy userId từ authentication nếu chưa có trong request
+        if (request.getUserId() == null) {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.getPrincipal() instanceof User) {
+                User currentUser = (User) authentication.getPrincipal();
+                request.setUserId(currentUser.getId());
+            }
         }
         
         TKBBatchResponse response = timetableSchedulingService.simulateExcelFlowBatch(request);
@@ -63,21 +75,7 @@ public class TKBController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "Reset lastSlotIdx", description = "Reset lastSlotIdx về -1 và lưu vào file")
-    @PostMapping("/reset-last-slot-idx")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> resetLastSlotIdx() {
-        timetableSchedulingService.resetLastSlotIdx();
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("lastSlotIdx", -1);
-        result.put("message", "Đã reset lastSlotIdx về -1 và lưu vào file");
-
-        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
-                .success(true)
-                .message("Reset lastSlotIdx thành công")
-                .data(result)
-                .build());
-    }
 
     @Operation(summary = "Debug common subject room assignment", description = "Test room assignment for common subjects")
     @PostMapping("/debug-common-subject")
@@ -140,6 +138,50 @@ public class TKBController {
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .success(true)
                 .message("Import dữ liệu thành công")
+                .data(result)
+                .build());
+    }
+
+    @Operation(summary = "Save lastSlotIdx to Redis", description = "Lưu lastSlotIdx vào Redis với key (userId, academicYear, semester)")
+    @PostMapping("/save-last-slot-idx")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> saveLastSlotIdxToRedis(
+            @RequestParam Long userId,
+            @RequestParam String academicYear,
+            @RequestParam String semester) {
+        
+        timetableSchedulingService.commitSessionToRedis(userId, academicYear, semester);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("userId", userId);
+        result.put("academicYear", academicYear);
+        result.put("semester", semester);
+        result.put("message", "Đã lưu lastSlotIdx vào Redis");
+
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .success(true)
+                .message("Lưu lastSlotIdx thành công")
+                .data(result)
+                .build());
+    }
+
+    @Operation(summary = "Reset lastSlotIdx in Redis", description = "Xóa lastSlotIdx trong Redis cho user, năm học, học kỳ")
+    @DeleteMapping("/reset-last-slot-idx-redis")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> resetLastSlotIdxRedis(
+            @RequestParam Long userId,
+            @RequestParam String academicYear,
+            @RequestParam String semester) {
+        
+        timetableSchedulingService.resetOccupiedRoomsRedis(userId, academicYear, semester);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("userId", userId);
+        result.put("academicYear", academicYear);
+        result.put("semester", semester);
+        result.put("message", "Đã reset lastSlotIdx trong Redis");
+
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .success(true)
+                .message("Reset lastSlotIdx thành công")
                 .data(result)
                 .build());
     }
