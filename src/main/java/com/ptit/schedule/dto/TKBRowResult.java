@@ -32,12 +32,18 @@ public class TKBRowResult {
     private Integer AJ; // AJ value (AI - AH)
     private String N; // Key N from template
     private List<String> O_to_AG; // Week schedule (18 weeks)
+    @JsonProperty("template_database_id")
+    private Long templateDatabaseId; // Database ID of TKBTemplate
     @JsonProperty("student_year")
     private String studentYear; // Student year (e.g., "2024", "2022")
     @JsonProperty("he_dac_thu")
     private String heDacThu; // Special system (e.g., "CLC", "CTTT")
     private String nganh; // Major
+    @JsonProperty("si_so_mot_lop")
+    private Integer siSoMotLop; // Sĩ số một lớp
     @JsonProperty("academic_year")
     private String academicYear; // Academic year (e.g., "2024-2025")
     private String semester; // Semester (e.g., "1", "2", "3")
+    @JsonProperty("subject_database_id")
+    private Long subjectDatabaseId; // Database ID của Subject entity
 }

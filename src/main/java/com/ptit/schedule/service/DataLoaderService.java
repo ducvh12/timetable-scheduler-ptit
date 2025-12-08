@@ -2,6 +2,11 @@ package com.ptit.schedule.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ptit.schedule.entity.Semester;
+import com.ptit.schedule.entity.TKBTemplate;
+import com.ptit.schedule.repository.SemesterRepository;
+import com.ptit.schedule.repository.TKBTemplateRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -9,51 +14,176 @@ import java.util.*;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class DataLoaderService {
 
+    private final TKBTemplateRepository tkbTemplateRepository;
+    private final SemesterRepository semesterRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private List<TKBTemplateRow> templateData = null;
+    private final Map<String, List<TKBTemplateRow>> templateDataCache = new HashMap<>();
 
-    public List<TKBTemplateRow> loadTemplateData() {
-        if (templateData != null) {
-            log.info("Returning cached template data: {} rows", templateData.size());
-            return templateData;
+    /**
+     * Load template data for specific semester from database
+     * @param semester Học kỳ (VD: "HK1 2024-2025")
+     * @return List of template rows
+     */
+    public List<TKBTemplateRow> loadTemplateData(String semester) {
+        // Check cache
+        if (templateDataCache.containsKey(semester)) {
+            log.info("📦 Returning cached template data for {}: {} rows", semester, templateDataCache.get(semester).size());
+            return templateDataCache.get(semester);
         }
 
         try {
-            log.info("Loading template data from real.json...");
-            ClassPathResource resource = new ClassPathResource("real.json");
-            JsonNode root = objectMapper.readTree(resource.getInputStream());
-            JsonNode dataArray = root.get("Data");
-
-            if (dataArray == null) {
-                log.warn("No 'Data' array found in real.json");
-                templateData = new ArrayList<>();
-                return templateData;
+            // Parse semester string to extract semesterName and academicYear
+            // VD: "HK1 2024-2025" -> semesterName="HK1", academicYear="2024-2025"
+            String[] parts = parseSemester(semester);
+            String semesterName = parts[0];
+            String academicYear = parts[1];
+            
+            log.info("🔍 Loading template data from database for {} {}...", semesterName, academicYear);
+            
+            // Find or create semester entity
+            Semester semesterEntity = findOrCreateSemester(semesterName, academicYear);
+            
+            // Query database
+            List<TKBTemplate> entities = tkbTemplateRepository.findBySemesterOrderByRowOrderAsc(semesterEntity);
+            
+            if (entities.isEmpty()) {
+                log.warn("⚠️ No template data found in database for {} {}", semesterName, academicYear);
+                return new ArrayList<>();
             }
 
-            log.info("Found Data array with {} elements", dataArray.size());
+            log.info("✅ Found {} templates in database", entities.size());
 
-            templateData = new ArrayList<>();
-
-            // Skip header row (index 0)
-            for (int i = 1; i < dataArray.size(); i++) {
-                JsonNode row = dataArray.get(i);
-                if (row.isArray() && row.size() >= 24) {
-                    TKBTemplateRow templateRow = parseTemplateRow(row);
-                    if (templateRow != null) {
-                        templateData.add(templateRow);
-                    }
+            // Convert entities to TKBTemplateRow
+            List<TKBTemplateRow> templateData = new ArrayList<>();
+            for (TKBTemplate entity : entities) {
+                TKBTemplateRow row = convertEntityToRow(entity);
+                if (row != null) {
+                    templateData.add(row);
                 }
             }
 
-            log.info("Loaded {} template rows from real.json", templateData.size());
+            // Cache the result
+            templateDataCache.put(semester, templateData);
+            
+            // Debug: Log template distribution by day and kip
+            Map<String, Long> distribution = templateData.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                    row -> "T" + row.getDayOfWeek() + "-K" + row.getKip(),
+                    java.util.stream.Collectors.counting()
+                ));
+            log.info("✅ Loaded and cached {} template rows for {}", templateData.size(), semester);
+            log.info("📊 Template distribution: {}", distribution);
             return templateData;
 
         } catch (Exception e) {
-            log.error("Error loading template data from real.json: {}", e.getMessage(), e);
-            templateData = new ArrayList<>();
-            return templateData;
+            log.error("❌ Error loading template data from database for {}: {}", semester, e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
+     * Parse semester string to extract semesterName and academicYear
+     * VD: "HK1 2024-2025" -> ["HK1", "2024-2025"]
+     *     "Học kỳ 2 2024-2025" -> ["HK2", "2024-2025"]
+     */
+    private String[] parseSemester(String semester) {
+        if (semester == null || semester.isEmpty()) {
+            return new String[]{"", ""};
+        }
+        
+        // Normalize first
+        String normalized = normalizeSemester(semester);
+        // Split by underscore: "HK1_2024-2025" -> ["HK1", "2024-2025"]
+        String[] parts = normalized.split("_", 2);
+        
+        if (parts.length == 2) {
+            return new String[]{parts[0], parts[1]};
+        } else if (parts.length == 1) {
+            return new String[]{parts[0], ""};
+        }
+        return new String[]{"", ""};
+    }
+
+    /**
+     * Generate filename from semester
+     * Normalize semester name to standard format
+     * VD: "Học kỳ 1 2024-2025" -> "real_HK1_2024-2025.json"
+     */
+    private String generateFilename(String semester) {
+        if (semester == null || semester.isEmpty()) {
+            return "real.json"; // fallback to default
+        }
+        
+        // Normalize semester name
+        String normalized = normalizeSemester(semester);
+        return "real_" + normalized + ".json";
+    }
+    
+    /**
+     * Normalize semester name to avoid Unicode issues
+     * VD: "Học kỳ 1 2024-2025" -> "HK1_2024-2025"
+     *     "Học kỳ 2 2024-2025" -> "HK2_2024-2025"
+     *     "HK1 2024-2025" -> "HK1_2024-2025"
+     *     "aaa 2024-2025" -> "aaa_2024-2025"
+     *     "aaaa - 2024-2025" -> "aaaa_2024-2025"
+     */
+    private String normalizeSemester(String semester) {
+        if (semester == null) return "";
+        
+        // Remove extra spaces and normalize
+        semester = semester.trim().replaceAll("\\s+", " ");
+        
+        // Convert "Học kỳ X" to "HKX"
+        semester = semester.replaceAll("(?i)h[oọôớờ][cçć]\\s*k[yỳýỵỹỷ]\\s*(\\d)", "HK$1");
+        
+        // Remove standalone dash with spaces (VD: "aaaa - 2024-2025" -> "aaaa 2024-2025")
+        semester = semester.replaceAll("\\s+-\\s+", " ");
+        
+        // Replace spaces with underscores (nhưng giữ nguyên dấu - trong năm học)
+        // VD: "HK1 2024-2025" -> "HK1_2024-2025"
+        semester = semester.replace(" ", "_");
+        
+        return semester;
+    }
+
+    /**
+     * Find Semester entity (không tự động tạo mới)
+     */
+    private Semester findOrCreateSemester(String semesterName, String academicYear) {
+        return semesterRepository.findBySemesterNameAndAcademicYear(semesterName, academicYear)
+            .orElseThrow(() -> new RuntimeException(
+                "Không tìm thấy học kỳ: " + semesterName + " " + academicYear + 
+                ". Vui lòng tạo học kỳ trước khi import template."));
+    }
+
+    /**
+     * Convert TKBTemplate entity to TKBTemplateRow
+     */
+    private TKBTemplateRow convertEntityToRow(TKBTemplate entity) {
+        try {
+            // Parse weekSchedule JSON string to List<Integer>
+            List<Integer> weekSchedule = objectMapper.readValue(
+                entity.getWeekSchedule(), 
+                objectMapper.getTypeFactory().constructCollectionType(List.class, Integer.class)
+            );
+            
+            return new TKBTemplateRow(
+                entity.getId(), // Add database ID
+                entity.getTotalPeriods(),
+                entity.getDayOfWeek(),
+                entity.getKip(),
+                entity.getStartPeriod(),
+                entity.getPeriodLength(),
+                entity.getTemplateId(),
+                weekSchedule,
+                entity.getTotalUsed()
+            );
+        } catch (Exception e) {
+            log.error("Error converting entity to row: {}", e.getMessage());
+            return null;
         }
     }
 
@@ -83,6 +213,7 @@ public class DataLoaderService {
             int totalUsed = weekSchedule.stream().mapToInt(Integer::intValue).sum() * periodLength;
 
             return new TKBTemplateRow(
+                    null, // No database ID for parsed rows
                     totalPeriods, dayOfWeek, kip, startPeriod, periodLength,
                     id, weekSchedule, totalUsed);
 
@@ -92,14 +223,33 @@ public class DataLoaderService {
         }
     }
 
+    /**
+     * Load template data without semester (deprecated, uses default)
+     * @deprecated Use loadTemplateData(String semester) instead
+     */
+    @Deprecated
+    public List<TKBTemplateRow> loadTemplateData() {
+        log.warn("⚠️ loadTemplateData() called without semester parameter. Using default 'real.json'");
+        return loadTemplateData(""); // Empty string will use real.json as fallback
+    }
+    
     public List<TKBTemplateRow> getTemplateByPeriods(int totalPeriods) {
+        log.warn("⚠️ getTemplateByPeriods() called without semester. Using default.");
         List<TKBTemplateRow> allData = loadTemplateData();
+        return allData.stream()
+                .filter(row -> row.getTotalPeriods() == totalPeriods)
+                .toList();
+    }
+    
+    public List<TKBTemplateRow> getTemplateByPeriods(int totalPeriods, String semester) {
+        List<TKBTemplateRow> allData = loadTemplateData(semester);
         return allData.stream()
                 .filter(row -> row.getTotalPeriods() == totalPeriods)
                 .toList();
     }
 
     public static class TKBTemplateRow {
+        private final Long databaseId; // ID từ database
         private final Integer totalPeriods;
         private final Integer dayOfWeek;
         private final Integer kip;
@@ -109,9 +259,10 @@ public class DataLoaderService {
         private final List<Integer> weekSchedule;
         private final Integer totalUsed;
 
-        public TKBTemplateRow(Integer totalPeriods, Integer dayOfWeek, Integer kip,
+        public TKBTemplateRow(Long databaseId, Integer totalPeriods, Integer dayOfWeek, Integer kip,
                 Integer startPeriod, Integer periodLength, String id,
                 List<Integer> weekSchedule, Integer totalUsed) {
+            this.databaseId = databaseId;
             this.totalPeriods = totalPeriods;
             this.dayOfWeek = dayOfWeek;
             this.kip = kip;
@@ -120,6 +271,10 @@ public class DataLoaderService {
             this.id = id;
             this.weekSchedule = weekSchedule;
             this.totalUsed = totalUsed;
+        }
+
+        public Long getDatabaseId() {
+            return databaseId;
         }
 
         // Getters
@@ -239,9 +394,12 @@ public class DataLoaderService {
 
 
     /**
-     * Import data from Excel file and overwrite real.json
+     * Import data from Excel file and save to JSON file with semester name
+     * @param file Excel file
+     * @param semester Học kỳ (VD: "HK1 2024-2025")
+     * @return Filename of saved JSON
      */
-    public void importDataFromExcel(org.springframework.web.multipart.MultipartFile file) {
+    public String importDataFromExcel(org.springframework.web.multipart.MultipartFile file, String semester) {
         try {
             log.info("Importing data from Excel file: {}", file.getOriginalFilename());
             
@@ -348,41 +506,111 @@ public class DataLoaderService {
 
             log.info("Parsed {} rows from Excel", dataArray.size());
 
-            // Create JSON structure
-            Map<String, Object> jsonData = new HashMap<>();
-            jsonData.put("Data", dataArray);
-
-            // Save to real.json (both target and source)
+            // Parse semester to get semesterName and academicYear
+            String[] parts = parseSemester(semester);
+            String semesterName = parts[0];
+            String academicYear = parts[1];
+            
+            log.info("Saving templates to database for {} {}...", semesterName, academicYear);
+            
+            // Find or create semester entity
+            Semester semesterEntity = findOrCreateSemester(semesterName, academicYear);
+            
+            // Convert Excel data to entities and save to database
+            List<TKBTemplate> entities = new ArrayList<>();
+            int rowOrder = 0;
+            
+            // Skip header row (index 0)
+            for (int i = 1; i < dataArray.size(); i++) {
+                List<Object> row = dataArray.get(i);
+                if (row.size() >= 24) {
+                    try {
+                        // Parse row data
+                        int totalPeriods = (Integer) row.get(0);
+                        int dayOfWeek = (Integer) row.get(1);
+                        int kip = (Integer) row.get(2);
+                        int startPeriod = (Integer) row.get(3);
+                        int periodLength = (Integer) row.get(4);
+                        String templateId = row.get(5).toString();
+                        
+                        // Parse week schedule (columns 6-23)
+                        List<Integer> weekSchedule = new ArrayList<>();
+                        for (int j = 6; j < 24; j++) {
+                            Object weekCell = row.get(j);
+                            if (weekCell != null && ("x".equalsIgnoreCase(weekCell.toString()) || "X".equalsIgnoreCase(weekCell.toString()))) {
+                                weekSchedule.add(1);
+                            } else {
+                                weekSchedule.add(0);
+                            }
+                        }
+                        
+                        // Calculate totalUsed
+                        int totalUsed = weekSchedule.stream().mapToInt(Integer::intValue).sum() * periodLength;
+                        
+                        // Convert weekSchedule to JSON string
+                        String weekScheduleJson = objectMapper.writeValueAsString(weekSchedule);
+                        
+                        // Create entity
+                        TKBTemplate entity = TKBTemplate.builder()
+                            .templateId(templateId)
+                            .totalPeriods(totalPeriods)
+                            .dayOfWeek(dayOfWeek)
+                            .kip(kip)
+                            .startPeriod(startPeriod)
+                            .periodLength(periodLength)
+                            .weekSchedule(weekScheduleJson)
+                            .totalUsed(totalUsed)
+                            .semester(semesterEntity)
+                            .rowOrder(rowOrder++)
+                            .build();
+                        
+                        entities.add(entity);
+                    } catch (Exception e) {
+                        log.warn("⚠️ Failed to parse row {}: {}", i, e.getMessage());
+                    }
+                }
+            }
+            
+            // Delete old templates for this semester before inserting new ones
             try {
-                // Save to target/classes (for current runtime)
-                ClassPathResource resource = new ClassPathResource("real.json");
-                String targetPath = resource.getFile().getAbsolutePath();
-                objectMapper.writerWithDefaultPrettyPrinter().writeValue(new java.io.File(targetPath), jsonData);
-                log.info("Saved imported data to target: {}", targetPath);
-
-                // Also save to src/main/resources (for persistence)
-                String projectRoot = System.getProperty("user.dir");
-                String srcPath = projectRoot + "/src/main/resources/real.json";
-                objectMapper.writerWithDefaultPrettyPrinter().writeValue(new java.io.File(srcPath), jsonData);
-                log.info("Saved imported data to source: {}", srcPath);
-
+                log.info("🗑️ Deleting old templates for {} {}...", semesterName, academicYear);
+                List<TKBTemplate> oldTemplates = tkbTemplateRepository.findBySemesterOrderByRowOrderAsc(semesterEntity);
+                if (!oldTemplates.isEmpty()) {
+                    tkbTemplateRepository.deleteAll(oldTemplates);
+                    log.info("✅ Deleted {} old templates", oldTemplates.size());
+                }
             } catch (Exception e) {
-                // Fallback: save to working directory
-                String fallbackPath = System.getProperty("user.dir") + "/real.json";
-                objectMapper.writerWithDefaultPrettyPrinter().writeValue(new java.io.File(fallbackPath), jsonData);
-                log.info("Saved imported data to fallback location: {}", fallbackPath);
+                log.warn("⚠️ Failed to delete old templates: {}", e.getMessage());
+            }
+            
+            // Save all entities to database
+            try {
+                List<TKBTemplate> savedEntities = tkbTemplateRepository.saveAll(entities);
+                log.info("✅ Saved {} templates to database", savedEntities.size());
+                
+                // Clear ALL cache entries for this semester (multiple possible keys)
+                String semesterKey = semesterName + " " + academicYear; // VD: "HK2 2024-2025"
+                templateDataCache.remove(semester); // Original key from parameter
+                templateDataCache.remove(semesterKey); // Normalized key
+                
+                // Clear all cache entries to be safe
+                templateDataCache.clear();
+                log.info("🗑️ Cleared all template cache");
+                
+                // Debug: Log new IDs from saved entities
+                List<Long> newIds = savedEntities.stream().map(TKBTemplate::getId).limit(5).toList();
+                log.info("📝 New template IDs (first 5): {}", newIds);
+                
+                log.info("✅ Successfully imported {} templates for {} {}", savedEntities.size(), semesterName, academicYear);
+                return semesterName + " " + academicYear;
+                
+            } catch (Exception e) {
+                log.error("❌ Failed to save to database: {}", e.getMessage());
+                throw new RuntimeException("Failed to save to database: " + e.getMessage(), e);
             }
 
-            // Clear cached template data and immediately reload from the new file
-            templateData = null;
-            log.info("Cache cleared, reloading template data from updated real.json...");
-            
-            // Force reload the new data immediately
-            loadTemplateData();
-            log.info("Successfully imported data from Excel, updated real.json, and reloaded {} rows", templateData.size());
-
         } catch (Exception e) {
-            log.error("Error importing data from Excel", e);
+            log.error("❌ Error importing data from Excel", e);
             throw new RuntimeException("Failed to import data from Excel: " + e.getMessage(), e);
         }
     }

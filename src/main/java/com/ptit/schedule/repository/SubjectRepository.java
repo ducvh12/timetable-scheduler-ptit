@@ -24,6 +24,24 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
     Page<Subject> findAll(Specification<Subject> spec, Pageable pageable);
 
     /**
+     * Tìm subject theo subjectCode, semesterName, academicYear (lấy cái đầu tiên)
+     * Dùng để tìm subject khi generate TKB
+     */
+    @Query("""
+        SELECT s FROM Subject s 
+        JOIN s.semester sem 
+        WHERE s.subjectCode = :subjectCode 
+          AND sem.semesterName = :semesterName 
+          AND sem.academicYear = :academicYear
+        ORDER BY s.id
+        """)
+    List<Subject> findAllBySubjectCodeAndSemesterAndAcademicYear(
+        @Param("subjectCode") String subjectCode,
+        @Param("semesterName") String semesterName,
+        @Param("academicYear") String academicYear
+    );
+    
+    /**
      * Tìm subject theo subjectCode, majorCode, semesterName, academicYear và classYear
      * Dùng để check duplicate khi import Excel hoặc tạo subject mới
      */

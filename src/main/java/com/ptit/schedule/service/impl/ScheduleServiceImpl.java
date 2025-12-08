@@ -3,6 +3,7 @@ package com.ptit.schedule.service.impl;
 import com.ptit.schedule.dto.*;
 import com.ptit.schedule.entity.Room;
 import com.ptit.schedule.entity.Schedule;
+import com.ptit.schedule.entity.Subject;
 import com.ptit.schedule.exception.InvalidDataException;
 import com.ptit.schedule.repository.ScheduleRepository;
 import com.ptit.schedule.service.*;
@@ -20,6 +21,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final RoomService roomService;
     private final SubjectRoomMappingService subjectRoomMappingService;
     private final RedisOccupiedRoomService redisOccupiedRoomService;
+    private final com.ptit.schedule.repository.SubjectRepository subjectRepository;
 
     private Set<String> sessionOccupiedRooms = new HashSet<>();
 
@@ -96,11 +98,6 @@ public class ScheduleServiceImpl implements ScheduleService {
      */
     @Override
     public TKBBatchResponse simulateExcelFlowBatch(TKBBatchRequest request) {
-        List<DataLoaderService.TKBTemplateRow> dataRows = dataLoaderService.loadTemplateData();
-        if (dataRows.isEmpty()) {
-            throw new InvalidDataException("Template data empty or not exists");
-        }
-
         // Lấy thông tin từ request
         Long userId = request.getUserId();
         
@@ -117,7 +114,25 @@ public class ScheduleServiceImpl implements ScheduleService {
         System.out.println("📋 [ScheduleService] Request Info:");
         System.out.println("   - userId: " + userId);
         System.out.println("   - academicYear: " + academicYear);
-        System.out.println("   - semester: " + semester);
+        System.out.println("   - semester (raw): " + semester);
+        
+        // Normalize semester: "1" -> "HK1", "2" -> "HK2", "HK1" -> "HK1"
+        String normalizedSemester = semester;
+        if (semester != null && semester.matches("^[12]$")) {
+            normalizedSemester = "HK" + semester;
+        }
+        System.out.println("   - semester (normalized): " + normalizedSemester);
+        
+        // Load template data for this semester
+        String semesterKey = normalizedSemester + " " + academicYear; // VD: "HK1 2024-2025"
+        System.out.println("   - semesterKey for loading: " + semesterKey);
+        
+        List<DataLoaderService.TKBTemplateRow> dataRows = dataLoaderService.loadTemplateData(semesterKey);
+        if (dataRows.isEmpty()) {
+            throw new InvalidDataException("Chưa có dữ liệu lịch mẫu cho " + semesterKey + ". Vui lòng import dữ liệu lịch mẫu trước khi sinh TKB.");
+        }
+        
+        System.out.println("✅ [ScheduleService] Loaded " + dataRows.size() + " templates for " + semesterKey);
 
         List<Room> rooms = loadRooms();
         Set<Object> occupiedRooms = initializeOccupiedRooms(userId, academicYear, semester);
@@ -342,12 +357,46 @@ public class ScheduleServiceImpl implements ScheduleService {
                 .AJ(aj)
                 .N(keyN)
                 .O_to_AG(weeks)
+                .templateDatabaseId(row.getDatabaseId())
                 .studentYear(payload.getStudent_year())
                 .heDacThu(payload.getHe_dac_thu())
                 .nganh(payload.getNganh())
+                .siSoMotLop(payload.getSiso_mot_lop())
                 .academicYear(payload.getAcademicYear())
                 .semester(payload.getSemester())
+                .subjectDatabaseId(findSubjectId(payload))
                 .build();
+    }
+
+    private Long findSubjectId(TKBRequest payload) {
+        try {
+            // Normalize semester
+            String normalizedSemester = normalizeSemesterString(payload.getSemester());
+            
+            // Find matching subjects and take first one
+            List<Subject> subjects = subjectRepository.findAllBySubjectCodeAndSemesterAndAcademicYear(
+                payload.getMa_mon(), 
+                normalizedSemester, 
+                payload.getAcademicYear()
+            );
+            
+            if (subjects.isEmpty()) {
+                System.out.println("⚠️ Subject not found - Code: " + payload.getMa_mon() + 
+                    ", Semester: " + normalizedSemester + 
+                    ", AcademicYear: " + payload.getAcademicYear());
+                return null;
+            }
+            
+            return subjects.get(0).getId();
+        } catch (Exception e) {
+            System.err.println("❌ Error finding subject: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private String normalizeSemesterString(String semester) {
+        // Không làm gì cả, trả về nguyên giá trị từ frontend
+        return semester != null ? semester : "HK1";
     }
 
     private int calculateMajorEndSlot(int classes, int targetTotal) {

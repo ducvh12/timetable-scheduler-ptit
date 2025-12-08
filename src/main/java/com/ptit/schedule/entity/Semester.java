@@ -1,5 +1,6 @@
 package com.ptit.schedule.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -41,6 +42,7 @@ public class Semester {
     private String description;  // Mô tả
 
     // Quan hệ 1-nhiều với Subject
+    @JsonIgnore // Tránh circular reference khi serialize JSON
     @OneToMany(mappedBy = "semester", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Subject> subjects;
 }

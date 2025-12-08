@@ -17,6 +17,7 @@ public class Faculty {
     @Column(name = "faculty_name")
     private String facultyName;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @OneToMany(mappedBy = "faculty", cascade = CascadeType.ALL)
     private List<Major> majors;
 }

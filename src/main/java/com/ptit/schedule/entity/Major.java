@@ -1,5 +1,6 @@
 package com.ptit.schedule.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -50,6 +51,7 @@ public class Major {
     @NotNull(message = "Faculty is required")
     private Faculty faculty;
 
+    @JsonIgnore // Tránh circular reference khi serialize JSON
     @OneToMany(mappedBy = "major", cascade = CascadeType.ALL)
     private List<Subject> subjects;
 }
