@@ -39,8 +39,10 @@ public class Schedule {
     @Column(name = "si_so_mot_lop")
     private Integer siSoMotLop; // Sĩ số một lớp - lấy từ FE
 
-    @Column(name = "room_number")
-    private String roomNumber; // Mã phòng
+    // Quan hệ với Room - tìm theo room name (room_number)
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "room_id")
+    private Room room; // Phòng học
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)

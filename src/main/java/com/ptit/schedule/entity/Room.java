@@ -1,5 +1,6 @@
 package com.ptit.schedule.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -53,6 +54,7 @@ public class Room {
     @Size(max = 1000, message = "Ghi chú không được vượt quá 1000 ký tự")
     private String note; // Ghi chú
 
+    @JsonIgnore
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<RoomOccupancy> occupancies = new ArrayList<>(); // Room occupation records

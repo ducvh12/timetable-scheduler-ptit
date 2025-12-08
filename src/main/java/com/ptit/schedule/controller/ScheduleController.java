@@ -35,6 +35,7 @@ public class ScheduleController {
     private final TKBTemplateRepository tkbTemplateRepository;
     private final SubjectRepository subjectRepository;
     private final DataLoaderService dataLoaderService;
+    private final com.ptit.schedule.repository.RoomRepository roomRepository;
 
     @PostMapping("/save-batch")
     public ResponseEntity<String> saveBatch(@RequestBody List<SaveScheduleRequest> scheduleRequests) {
@@ -70,6 +71,34 @@ public class ScheduleController {
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Không tìm thấy template với ID: " + request.getTemplateDatabaseId()));
             
+            // Find Room by roomNumber (if provided)
+            // Format: "402-A2" -> name="402", building="A2"
+            com.ptit.schedule.entity.Room room = null;
+            if (request.getRoomNumber() != null && !request.getRoomNumber().isEmpty()) {
+                String roomNumber = request.getRoomNumber();
+                String[] parts = roomNumber.split("-");
+                
+                if (parts.length == 2) {
+                    String roomName = parts[0].trim();      // "402"
+                    String building = parts[1].trim();       // "A2"
+                    room = roomRepository.findByNameAndBuilding(roomName, building).orElse(null);
+                    
+                    if (room == null) {
+                        System.out.println("⚠️ Room not found - Name: " + roomName + ", Building: " + building);
+                    } else {
+                        System.out.println("✅ Found Room: " + room.getName() + "-" + room.getBuilding() + " (ID: " + room.getId() + ")");
+                    }
+                } else {
+                    // Fallback: try to find by name only
+                    room = roomRepository.findByName(roomNumber).orElse(null);
+                    System.out.println(room == null 
+                        ? "⚠️ Room not found for: " + roomNumber 
+                        : "✅ Found Room by name: " + room.getName());
+                }
+            } else {
+                System.out.println("⚠️ RoomNumber is null or empty");
+            }
+            
             // Create Schedule entity
             Schedule schedule = Schedule.builder()
                     .subject(subject) // Gắn subject entity
@@ -78,7 +107,7 @@ public class ScheduleController {
                     .major(request.getMajor()) // Lưu major từ FE
                     .specialSystem(request.getSpecialSystem())
                     .siSoMotLop(request.getSiSoMotLop()) // Lưu sĩ số một lớp từ FE
-                    .roomNumber(request.getRoomNumber())
+                    .room(room) // Gắn Room entity (null nếu không tìm thấy)
                     .user(currentUser)
                     .tkbTemplate(template) // Gắn template vào schedule
                     .build();

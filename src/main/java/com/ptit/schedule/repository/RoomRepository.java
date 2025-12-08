@@ -39,6 +39,9 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     // Tìm phòng theo loại và trạng thái
     List<Room> findByTypeAndStatus(RoomType type, RoomStatus status);
 
+    // Tìm phòng theo name (room number)
+    Optional<Room> findByName(String name);
+
     // Tìm phòng theo sức chứa tối thiểu
     List<Room> findByCapacityGreaterThanEqual(Integer minCapacity);
 
