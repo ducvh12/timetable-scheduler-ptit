@@ -2,17 +2,32 @@ package com.ptit.schedule.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ptit.schedule.entity.Room;
+import com.ptit.schedule.entity.RoomOccupancy;
+import com.ptit.schedule.entity.Semester;
+import com.ptit.schedule.repository.RoomOccupancyRepository;
+import com.ptit.schedule.repository.RoomRepository;
+import com.ptit.schedule.repository.SemesterRepository;
+import com.ptit.schedule.utils.RoomOccupancyUtils;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class DataLoaderService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RoomOccupancyRepository roomOccupancyRepository;
+    private final RoomRepository roomRepository;
+    private final SemesterRepository semesterRepository;
+
     private List<TKBTemplateRow> templateData = null;
+    private Long currentSemesterId = null; // Current active semester for room operations
 
     public List<TKBTemplateRow> loadTemplateData() {
         if (templateData != null) {
@@ -157,9 +172,57 @@ public class DataLoaderService {
     }
 
     /**
-     * Load global occupied rooms from global_occupied_rooms.json
+     * Set current active semester for room operations
+     * 
+     * @param semesterId Semester ID
+     */
+    public void setCurrentSemesterId(Long semesterId) {
+        this.currentSemesterId = semesterId;
+        log.info("Current semester ID set to: {}", semesterId);
+    }
+
+    /**
+     * Get current active semester ID
+     * 
+     * @return Current semester ID or null if not set
+     */
+    public Long getCurrentSemesterId() {
+        return this.currentSemesterId;
+    }
+
+    /**
+     * Load global occupied rooms from database for current semester
+     * Returns Set<Object> for backward compatibility with existing code
+     * Each entry format: "404-A2|5|1" (roomCode|dayOfWeek|period)
      */
     public Set<Object> loadGlobalOccupiedRooms() {
+        try {
+            if (currentSemesterId == null) {
+                log.warn("Current semester ID not set, attempting to load from JSON as fallback");
+                return loadGlobalOccupiedRoomsFromJson();
+            }
+
+            log.info("Loading occupied rooms from database for semester ID: {}", currentSemesterId);
+            Set<String> occupiedKeys = roomOccupancyRepository.findOccupiedKeysBySemesterId(currentSemesterId);
+
+            // Convert Set<String> to Set<Object> for backward compatibility
+            Set<Object> result = new HashSet<>(occupiedKeys);
+            log.info("Loaded {} occupied room entries from database", result.size());
+            return result;
+        } catch (Exception e) {
+            log.error("Error loading occupied rooms from database, falling back to JSON", e);
+            return loadGlobalOccupiedRoomsFromJson();
+        }
+    }
+
+    /**
+     * Load global occupied rooms from global_occupied_rooms.json (legacy/fallback
+     * method)
+     * 
+     * @deprecated Use database method instead
+     */
+    @Deprecated
+    private Set<Object> loadGlobalOccupiedRoomsFromJson() {
         try {
             log.info("Loading global occupied rooms from global_occupied_rooms.json...");
             ClassPathResource resource = new ClassPathResource("global_occupied_rooms.json");
@@ -183,19 +246,119 @@ public class DataLoaderService {
                 }
             }
 
-            log.info("Loaded {} occupied room entries", occupiedRooms.size());
+            log.info("Loaded {} occupied room entries from JSON", occupiedRooms.size());
             return occupiedRooms;
         } catch (Exception e) {
-            log.error("Error loading global occupied rooms", e);
+            log.error("Error loading global occupied rooms from JSON", e);
             return new HashSet<>();
         }
     }
 
     /**
-     * Save global occupied rooms to global_occupied_rooms.json
-     * Saves to both target/classes and src/main/resources for persistence
+     * Save global occupied rooms to database for current semester
+     * Clears existing occupancies and saves new ones
+     * 
+     * @param occupiedRooms Set of room occupancy keys (format: "404-A2|5|1")
      */
+    @Transactional
     public void saveGlobalOccupiedRooms(Set<Object> occupiedRooms) {
+        try {
+            if (currentSemesterId == null) {
+                log.warn("Current semester ID not set, falling back to JSON save");
+                saveGlobalOccupiedRoomsToJson(occupiedRooms);
+                return;
+            }
+
+            log.info("Saving {} occupied room entries to database for semester ID: {}",
+                    occupiedRooms.size(), currentSemesterId);
+
+            // Get semester entity
+            Semester semester = semesterRepository.findById(Objects.requireNonNull(currentSemesterId))
+                    .orElseThrow(() -> new RuntimeException("Semester not found: " + currentSemesterId));
+
+            // Delete existing occupancies for this semester
+            roomOccupancyRepository.deleteBySemesterId(currentSemesterId);
+            log.info("Cleared existing occupancies for semester ID: {}", currentSemesterId);
+
+            // Convert and save new occupancies
+            List<RoomOccupancy> newOccupancies = new ArrayList<>();
+            Map<String, Room> roomCache = new HashMap<>(); // Cache to avoid repeated DB queries
+
+            for (Object obj : occupiedRooms) {
+                if (obj == null)
+                    continue;
+
+                String uniqueKey = obj.toString();
+                if (!RoomOccupancyUtils.isValidUniqueKey(uniqueKey)) {
+                    log.warn("Invalid unique key format: {}", uniqueKey);
+                    continue;
+                }
+
+                // Parse unique key: "404-A2|5|1"
+                String roomCode = RoomOccupancyUtils.extractRoomCode(uniqueKey);
+                Integer dayOfWeek = RoomOccupancyUtils.extractDayOfWeek(uniqueKey);
+                Integer period = RoomOccupancyUtils.extractPeriod(uniqueKey);
+
+                if (roomCode == null || dayOfWeek == null || period == null) {
+                    log.warn("Failed to parse unique key: {}", uniqueKey);
+                    continue;
+                }
+
+                // Parse room code: "404-A2"
+                String roomName = RoomOccupancyUtils.extractRoomName(roomCode);
+                String building = RoomOccupancyUtils.extractBuilding(roomCode);
+
+                if (roomName == null || building == null) {
+                    log.warn("Failed to parse room code: {}", roomCode);
+                    continue;
+                }
+
+                // Get or cache room
+                Room room = roomCache.get(roomCode);
+                if (room == null) {
+                    room = roomRepository.findByNameAndBuilding(roomName, building)
+                            .orElse(null);
+                    if (room == null) {
+                        log.warn("Room not found: {} in building {}", roomName, building);
+                        continue;
+                    }
+                    roomCache.put(roomCode, room);
+                }
+
+                // Create RoomOccupancy entity
+                RoomOccupancy occupancy = RoomOccupancy.builder()
+                        .room(room)
+                        .semester(semester)
+                        .dayOfWeek(dayOfWeek)
+                        .period(period)
+                        .uniqueKey(uniqueKey)
+                        .build();
+
+                newOccupancies.add(occupancy);
+            }
+
+            // Batch save
+            if (!newOccupancies.isEmpty()) {
+                roomOccupancyRepository.saveAll(newOccupancies);
+                log.info("Successfully saved {} room occupancies to database", newOccupancies.size());
+            } else {
+                log.warn("No valid occupancies to save");
+            }
+
+        } catch (Exception e) {
+            log.error("Error saving occupied rooms to database, falling back to JSON", e);
+            saveGlobalOccupiedRoomsToJson(occupiedRooms);
+        }
+    }
+
+    /**
+     * Save global occupied rooms to global_occupied_rooms.json (legacy/fallback
+     * method)
+     * 
+     * @deprecated Use database method instead
+     */
+    @Deprecated
+    private void saveGlobalOccupiedRoomsToJson(Set<Object> occupiedRooms) {
         try {
             log.info("Saving {} occupied room entries to global_occupied_rooms.json", occupiedRooms.size());
 
@@ -228,15 +391,11 @@ public class DataLoaderService {
                 log.info("Saved to fallback location: {}", fallbackPath);
             }
 
-            log.info("Successfully saved global occupied rooms");
+            log.info("Successfully saved global occupied rooms to JSON");
         } catch (Exception e) {
-            log.error("Error saving global occupied rooms", e);
+            log.error("Error saving global occupied rooms to JSON", e);
         }
     }
-
-
-
-
 
     /**
      * Import data from Excel file and overwrite real.json
@@ -244,7 +403,7 @@ public class DataLoaderService {
     public void importDataFromExcel(org.springframework.web.multipart.MultipartFile file) {
         try {
             log.info("Importing data from Excel file: {}", file.getOriginalFilename());
-            
+
             // Parse Excel file using Apache POI
             org.apache.poi.ss.usermodel.Workbook workbook;
             String filename = file.getOriginalFilename();
@@ -258,34 +417,36 @@ public class DataLoaderService {
             List<List<Object>> dataArray = new ArrayList<>();
 
             // Create FormulaEvaluator to evaluate formulas
-            org.apache.poi.ss.usermodel.FormulaEvaluator formulaEvaluator = workbook.getCreationHelper().createFormulaEvaluator();
-            
+            org.apache.poi.ss.usermodel.FormulaEvaluator formulaEvaluator = workbook.getCreationHelper()
+                    .createFormulaEvaluator();
+
             // Read all rows from Excel
             for (org.apache.poi.ss.usermodel.Row row : sheet) {
                 if (row == null) {
                     continue;
                 }
-                
+
                 List<Object> rowData = new ArrayList<>();
                 // Get the last column number from the row to include all cells
                 int lastColumn = Math.max(row.getLastCellNum(), 0);
-                
+
                 for (int cn = 0; cn < lastColumn; cn++) {
-                    org.apache.poi.ss.usermodel.Cell cell = row.getCell(cn, org.apache.poi.ss.usermodel.Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-                    
+                    org.apache.poi.ss.usermodel.Cell cell = row.getCell(cn,
+                            org.apache.poi.ss.usermodel.Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+
                     if (cell == null) {
                         rowData.add(null);
                         continue;
                     }
-                    
+
                     // Get the cell type, evaluating formulas to their result type
                     org.apache.poi.ss.usermodel.CellType cellType = cell.getCellType();
-                    
+
                     // If it's a formula, evaluate it to get the result type
                     if (cellType == org.apache.poi.ss.usermodel.CellType.FORMULA) {
                         cellType = cell.getCachedFormulaResultType();
                     }
-                    
+
                     switch (cellType) {
                         case STRING:
                             rowData.add(cell.getStringCellValue());
@@ -376,10 +537,11 @@ public class DataLoaderService {
             // Clear cached template data and immediately reload from the new file
             templateData = null;
             log.info("Cache cleared, reloading template data from updated real.json...");
-            
+
             // Force reload the new data immediately
             loadTemplateData();
-            log.info("Successfully imported data from Excel, updated real.json, and reloaded {} rows", templateData.size());
+            log.info("Successfully imported data from Excel, updated real.json, and reloaded {} rows",
+                    templateData.size());
 
         } catch (Exception e) {
             log.error("Error importing data from Excel", e);

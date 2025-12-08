@@ -15,7 +15,11 @@ import java.util.Optional;
 public interface RoomRepository extends JpaRepository<Room, Long> {
 
     // Tìm phòng theo tòa nhà
-    @Query("SELECT r FROM Room r WHERE r.day = :day")
+    @Query("SELECT r FROM Room r WHERE r.building = :building")
+    List<Room> findByBuilding(@Param("building") String building);
+
+    // Tìm phòng theo tòa nhà (backward compatible method name)
+    @Query("SELECT r FROM Room r WHERE r.building = :day")
     List<Room> findByDay(@Param("day") String day);
 
     // Tìm phòng theo loại
@@ -25,7 +29,11 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     List<Room> findByStatus(RoomStatus status);
 
     // Tìm phòng theo tòa nhà và trạng thái
-    @Query("SELECT r FROM Room r WHERE r.day = :day AND r.status = :status")
+    @Query("SELECT r FROM Room r WHERE r.building = :building AND r.status = :status")
+    List<Room> findByBuildingAndStatus(@Param("building") String building, @Param("status") RoomStatus status);
+
+    // Tìm phòng theo tòa nhà và trạng thái (backward compatible method name)
+    @Query("SELECT r FROM Room r WHERE r.building = :day AND r.status = :status")
     List<Room> findByDayAndStatus(@Param("day") String day, @Param("status") RoomStatus status);
 
     // Tìm phòng theo loại và trạng thái
@@ -39,11 +47,20 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     List<Room> findAvailableRoomsWithCapacity(@Param("requiredCapacity") Integer requiredCapacity);
 
     // Tìm phòng theo tòa nhà và sức chứa
-    @Query("SELECT r FROM Room r WHERE r.day = :day AND r.capacity >= :minCapacity")
+    @Query("SELECT r FROM Room r WHERE r.building = :building AND r.capacity >= :minCapacity")
+    List<Room> findByBuildingAndCapacityGreaterThanEqual(@Param("building") String building,
+            @Param("minCapacity") Integer minCapacity);
+
+    // Tìm phòng theo tòa nhà và sức chứa (backward compatible method name)
+    @Query("SELECT r FROM Room r WHERE r.building = :day AND r.capacity >= :minCapacity")
     List<Room> findByDayAndCapacityGreaterThanEqual(@Param("day") String day,
             @Param("minCapacity") Integer minCapacity);
 
     // Tìm phòng theo số phòng và tòa nhà
-    @Query("SELECT r FROM Room r WHERE r.phong = :phong AND r.day = :day")
+    @Query("SELECT r FROM Room r WHERE r.name = :name AND r.building = :building")
+    Optional<Room> findByNameAndBuilding(@Param("name") String name, @Param("building") String building);
+
+    // Tìm phòng theo số phòng và tòa nhà (backward compatible method name)
+    @Query("SELECT r FROM Room r WHERE r.name = :phong AND r.building = :day")
     Optional<Room> findByPhongAndDay(@Param("phong") String phong, @Param("day") String day);
 }

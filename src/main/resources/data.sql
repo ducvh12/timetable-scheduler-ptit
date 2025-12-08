@@ -24,7 +24,7 @@ faculty_name = VALUES(faculty_name);
 
 
 -- Insert dữ liệu phòng học với id cụ thể
-INSERT INTO rooms (id, phong, capacity, building, type, status, note) VALUES
+INSERT INTO rooms (id, name, capacity, building, type, status, note) VALUES
 (1, '301', 36, 'A1', 'CLC', 'AVAILABLE', 'Lớp CLC 2024'),
 (2, '302', 36, 'A1', 'CLC', 'AVAILABLE', 'Lớp CLC 2024'),
 (3, '303', 36, 'A1', 'CLC', 'AVAILABLE', 'Lớp CLC 2024'),
