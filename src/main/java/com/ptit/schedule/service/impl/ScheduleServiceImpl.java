@@ -4,15 +4,20 @@ import com.ptit.schedule.dto.*;
 import com.ptit.schedule.entity.Room;
 import com.ptit.schedule.entity.Schedule;
 import com.ptit.schedule.entity.Subject;
+import com.ptit.schedule.entity.Semester;
 import com.ptit.schedule.exception.InvalidDataException;
 import com.ptit.schedule.repository.ScheduleRepository;
+import com.ptit.schedule.repository.SemesterRepository;
+import com.ptit.schedule.repository.SubjectRepository;
 import com.ptit.schedule.service.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ScheduleServiceImpl implements ScheduleService {
@@ -21,7 +26,8 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final RoomService roomService;
     private final SubjectRoomMappingService subjectRoomMappingService;
     private final RedisOccupiedRoomService redisOccupiedRoomService;
-    private final com.ptit.schedule.repository.SubjectRepository subjectRepository;
+    private final SemesterRepository semesterRepository;
+    private final SubjectRepository subjectRepository;
 
     private Set<String> sessionOccupiedRooms = new HashSet<>();
 
@@ -45,8 +51,7 @@ public class ScheduleServiceImpl implements ScheduleService {
             new DayPairSlot(4, 5, 1),
             new DayPairSlot(4, 5, 2),
             new DayPairSlot(6, 7, 3),
-            new DayPairSlot(6, 7, 4)
-    );
+            new DayPairSlot(6, 7, 4));
 
     private int lastSlotIdx = -1;
     private int sessionLastSlotIdx = -1;
@@ -100,17 +105,36 @@ public class ScheduleServiceImpl implements ScheduleService {
     public TKBBatchResponse simulateExcelFlowBatch(TKBBatchRequest request) {
         // Lấy thông tin từ request
         Long userId = request.getUserId();
-        
-        // Lấy academicYear và semester từ item đầu tiên (vì tất cả items cùng học kỳ, năm học)
+
+        // Lấy academicYear và semester từ item đầu tiên (vì tất cả items cùng học kỳ,
+        // năm học)
         String academicYear = request.getAcademicYear();
         String semester = request.getSemester();
-        
+
         if ((academicYear == null || semester == null) && !request.getItems().isEmpty()) {
             TKBRequest firstItem = request.getItems().get(0);
             academicYear = firstItem.getAcademic_year();
             semester = firstItem.getSemester();
         }
-        
+
+        // Auto-detect và set semesterId cho DataLoaderService
+        if (academicYear != null && semester != null) {
+            Optional<Semester> semesterEntity = semesterRepository
+                    .findBySemesterNameAndAcademicYear(semester, academicYear);
+
+            if (semesterEntity.isPresent()) {
+                Long semesterId = semesterEntity.get().getId();
+                dataLoaderService.setCurrentSemesterId(semesterId);
+                log.info("✅ Auto-detected semesterId: {} for {}/{}", semesterId, academicYear, semester);
+            } else {
+                log.warn("⚠️ Semester not found for {}/{}, will fallback to JSON", academicYear, semester);
+                dataLoaderService.setCurrentSemesterId(null);
+            }
+        } else {
+            log.warn("⚠️ academicYear/semester is null, will fallback to JSON");
+            dataLoaderService.setCurrentSemesterId(null);
+        }
+
         System.out.println("📋 [ScheduleService] Request Info:");
         System.out.println("   - userId: " + userId);
         System.out.println("   - academicYear: " + academicYear);
@@ -136,28 +160,29 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         List<Room> rooms = loadRooms();
         Set<Object> occupiedRooms = initializeOccupiedRooms(userId, academicYear, semester);
-        
+
         List<TKBBatchItemResponse> itemsOut = new ArrayList<>();
         int totalRows = 0;
         int totalClasses = 0;
-        
+
         // Load lastSlotIdx từ Redis
         if (userId != null && academicYear != null && semester != null) {
             lastSlotIdx = redisOccupiedRoomService.loadLastSlotIdx(userId, academicYear, semester);
-            System.out.println("✅ [ScheduleService] Load lastSlotIdx từ REDIS: " + lastSlotIdx + 
-                             " (key: " + userId + ":" + academicYear + ":" + semester + ")");
+            System.out.println("✅ [ScheduleService] Load lastSlotIdx từ REDIS: " + lastSlotIdx +
+                    " (key: " + userId + ":" + academicYear + ":" + semester + ")");
         } else {
-            System.out.println("⚠️ [ScheduleService] Cannot load lastSlotIdx: userId/academicYear/semester null. Using -1");
+            System.out.println(
+                    "⚠️ [ScheduleService] Cannot load lastSlotIdx: userId/academicYear/semester null. Using -1");
             lastSlotIdx = -1;
         }
         sessionLastSlotIdx = lastSlotIdx;
-        
+
         List<TKBRequest> sortedItems = sortSubjectsByPeriods(request.getItems());
 
         for (TKBRequest tkbRequest : sortedItems) {
             TKBBatchItemResponse itemResponse = processSubject(tkbRequest, dataRows, rooms, occupiedRooms);
             itemsOut.add(itemResponse);
-            
+
             if (!itemResponse.getRows().isEmpty()) {
                 totalRows += itemResponse.getRows().size();
                 totalClasses++;
@@ -189,8 +214,8 @@ public class ScheduleServiceImpl implements ScheduleService {
         // Save lastSlotIdx to Redis
         if (userId != null && academicYear != null && semester != null) {
             redisOccupiedRoomService.saveLastSlotIdx(userId, academicYear, semester, sessionLastSlotIdx);
-            System.out.println("✅ [ScheduleService] Save lastSlotIdx vào REDIS: " + sessionLastSlotIdx + 
-                             " (key: " + userId + ":" + academicYear + ":" + semester + ")");
+            System.out.println("✅ [ScheduleService] Save lastSlotIdx vào REDIS: " + sessionLastSlotIdx +
+                    " (key: " + userId + ":" + academicYear + ":" + semester + ")");
         } else {
             System.out.println("⚠️ [ScheduleService] Cannot save lastSlotIdx: userId/academicYear/semester null");
         }
@@ -246,7 +271,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     private Set<Object> initializeOccupiedRooms(Long userId, String academicYear, String semester) {
         sessionOccupiedRooms.clear();
         subjectRoomMappingService.clearMappings();
-        
+
         Set<Object> globalOccupiedRooms = dataLoaderService.loadGlobalOccupiedRooms();
         return new HashSet<>(globalOccupiedRooms);
     }
@@ -254,17 +279,19 @@ public class ScheduleServiceImpl implements ScheduleService {
     private List<TKBRequest> sortSubjectsByPeriods(List<TKBRequest> items) {
         List<TKBRequest> sorted = new ArrayList<>(items);
         sorted.sort((a, b) -> {
-            if (a.getSotiet() == 60 && b.getSotiet() != 60) return -1;
-            if (a.getSotiet() != 60 && b.getSotiet() == 60) return 1;
+            if (a.getSotiet() == 60 && b.getSotiet() != 60)
+                return -1;
+            if (a.getSotiet() != 60 && b.getSotiet() == 60)
+                return 1;
             return 0;
         });
         return sorted;
     }
 
-    private TKBBatchItemResponse processSubject(TKBRequest tkbRequest, 
+    private TKBBatchItemResponse processSubject(TKBRequest tkbRequest,
             List<DataLoaderService.TKBTemplateRow> dataRows,
             List<Room> rooms, Set<Object> occupiedRooms) {
-        
+
         int targetTotal = tkbRequest.getSotiet();
 
         List<DataLoaderService.TKBTemplateRow> pool = dataRows.stream()
@@ -272,7 +299,8 @@ public class ScheduleServiceImpl implements ScheduleService {
                 .collect(Collectors.toList());
 
         if (pool.isEmpty()) {
-            throw new InvalidDataException("Không có Data cho " + targetTotal + " tiết (Môn: " + tkbRequest.getMa_mon() + ")");
+            throw new InvalidDataException(
+                    "Không có Data cho " + targetTotal + " tiết (Môn: " + tkbRequest.getMa_mon() + ")");
         }
 
         int classes = Math.max(1, toInt(tkbRequest.getSolop(), 1));
@@ -284,7 +312,8 @@ public class ScheduleServiceImpl implements ScheduleService {
             resultRows = process60PeriodSubject(tkbRequest, pool, rooms, occupiedRooms, startingSlotIdx);
         } else {
             startingSlotIdx = (sessionLastSlotIdx + 1) % ROTATING_SLOTS.size();
-            resultRows = processRegularSubject(tkbRequest, pool, rooms, occupiedRooms, startingSlotIdx, classes, targetTotal);
+            resultRows = processRegularSubject(tkbRequest, pool, rooms, occupiedRooms, startingSlotIdx, classes,
+                    targetTotal);
         }
 
         if (!resultRows.isEmpty()) {
@@ -541,7 +570,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                         if (assignment != null) {
                             classRoomCode = assignment.getRoomCode();
                             classRoomMaPhong = assignment.getMaPhong();
-                            
+
                             markRoomOccupiedForDays(classRoomMaPhong, dayPairSlot.getDays(), targetKip, occupiedRooms);
                         }
                     }
@@ -580,10 +609,10 @@ public class ScheduleServiceImpl implements ScheduleService {
         return toInt(value, 0);
     }
 
-    private RoomAssignment assignRoomForClass(TKBRequest tkbRequest, 
+    private RoomAssignment assignRoomForClass(TKBRequest tkbRequest,
             DataLoaderService.TKBTemplateRow row,
             List<Room> rooms, Set<Object> occupiedRooms) {
-        
+
         Integer tietBd = row.getStartPeriod();
         Integer rowThu = row.getDayOfWeek();
         Integer rowKip = row.getKip();
@@ -603,8 +632,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                 tkbRequest.getHe_dac_thu(),
                 null,
                 tkbRequest.getNganh(),
-                tkbRequest.getMa_mon()
-        );
+                tkbRequest.getMa_mon());
 
         if (!roomResult.hasRoom()) {
             return null;
@@ -617,7 +645,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         return new RoomAssignment(roomResult.getRoomCode(), roomResult.getMaPhong());
     }
 
-    private void markRoomOccupiedForDays(String maPhong, List<Integer> days, 
+    private void markRoomOccupiedForDays(String maPhong, List<Integer> days,
             Integer kip, Set<Object> occupiedRooms) {
         for (Integer day : days) {
             String occupationKey = maPhong + "|" + day + "|" + kip;
@@ -629,9 +657,9 @@ public class ScheduleServiceImpl implements ScheduleService {
     private Room convertToRoom(RoomResponse roomResponse) {
         return Room.builder()
                 .id(roomResponse.getId())
-                .phong(roomResponse.getPhong())
+                .name(roomResponse.getName())
                 .capacity(roomResponse.getCapacity())
-                .day(roomResponse.getDay())
+                .building(roomResponse.getBuilding())
                 .type(roomResponse.getType())
                 .status(roomResponse.getStatus())
                 .note(roomResponse.getNote())

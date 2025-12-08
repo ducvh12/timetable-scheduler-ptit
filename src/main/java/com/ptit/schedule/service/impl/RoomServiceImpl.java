@@ -51,17 +51,17 @@ public class RoomServiceImpl implements RoomService {
     @Override
     public RoomResponse createRoom(RoomRequest roomRequest) {
         // Kiểm tra phòng đã tồn tại chưa
-        Optional<Room> existingRoom = roomRepository.findByPhongAndDay(
-                roomRequest.getPhong(), roomRequest.getDay());
+        Optional<Room> existingRoom = roomRepository.findByNameAndBuilding(
+                roomRequest.getName(), roomRequest.getBuilding());
         if (existingRoom.isPresent()) {
-            throw new RuntimeException("Phòng " + roomRequest.getPhong() +
-                    " trong tòa nhà " + roomRequest.getDay() + " đã tồn tại");
+            throw new RuntimeException("Phòng " + roomRequest.getName() +
+                    " trong tòa nhà " + roomRequest.getBuilding() + " đã tồn tại");
         }
 
         Room room = Room.builder()
-                .phong(roomRequest.getPhong())
+                .name(roomRequest.getName())
                 .capacity(roomRequest.getCapacity())
-                .day(roomRequest.getDay())
+                .building(roomRequest.getBuilding())
                 .type(roomRequest.getType())
                 .status(RoomStatus.AVAILABLE) // Mặc định là trống
                 .note(roomRequest.getNote())
@@ -77,16 +77,16 @@ public class RoomServiceImpl implements RoomService {
                 .orElseThrow(() -> new ResourceNotFoundException("phòng học", "mã", id));
 
         // Kiểm tra phòng khác có cùng số phòng và tòa nhà không
-        Optional<Room> existingRoom = roomRepository.findByPhongAndDay(
-                roomRequest.getPhong(), roomRequest.getDay());
+        Optional<Room> existingRoom = roomRepository.findByNameAndBuilding(
+                roomRequest.getName(), roomRequest.getBuilding());
         if (existingRoom.isPresent() && !existingRoom.get().getId().equals(id)) {
-            throw new RuntimeException("Phòng " + roomRequest.getPhong() +
-                    " trong tòa nhà " + roomRequest.getDay() + " đã tồn tại");
+            throw new RuntimeException("Phòng " + roomRequest.getName() +
+                    " trong tòa nhà " + roomRequest.getBuilding() + " đã tồn tại");
         }
 
-        room.setPhong(roomRequest.getPhong());
+        room.setName(roomRequest.getName());
         room.setCapacity(roomRequest.getCapacity());
-        room.setDay(roomRequest.getDay());
+        room.setBuilding(roomRequest.getBuilding());
         room.setType(roomRequest.getType());
         room.setNote(roomRequest.getNote());
 
@@ -243,7 +243,7 @@ public class RoomServiceImpl implements RoomService {
         List<Room> suitableRooms = new ArrayList<>();
 
         for (Room r : rooms) {
-            String code = r.getPhong();
+            String code = r.getName();
             if (code == null || code.trim().isEmpty()) {
                 continue;
             }
@@ -299,7 +299,7 @@ public class RoomServiceImpl implements RoomService {
                     suitableRooms.add(r);
                 }
             } catch (Exception e) {
-                log.warn("Lỗi khi kiểm tra phòng {} phù hợp: {}", r.getPhong(), e.getMessage());
+                log.warn("Lỗi khi kiểm tra phòng {} phù hợp: {}", r.getName(), e.getMessage());
             }
         }
 
@@ -310,7 +310,7 @@ public class RoomServiceImpl implements RoomService {
             // Fallback: allow rooms that still satisfy suitability rules but ignore
             // building preference
             for (Room r : rooms) {
-                String code = r.getPhong();
+                String code = r.getName();
                 if (code == null || code.trim().isEmpty()) {
                     continue;
                 }
@@ -357,7 +357,7 @@ public class RoomServiceImpl implements RoomService {
                             .filter(r -> r.getType() != null
                                     && "english_class".equals(r.getType().name().toLowerCase()))
                             .forEach(r -> log.error("  - Phòng {}: capacity={}, day={}",
-                                    r.getPhong(), r.getCapacity(), r.getDay()));
+                                    r.getName(), r.getCapacity(), r.getBuilding()));
                 }
 
                 throw new RuntimeException(errorMsg);
@@ -373,10 +373,10 @@ public class RoomServiceImpl implements RoomService {
 
         // 5. Select best room and save mapping
         Room selectedRoom = suitableRooms.get(0);
-        subjectRoomMappingService.setSubjectRoom(maMon, selectedRoom.getPhong());
+        subjectRoomMappingService.setSubjectRoom(maMon, selectedRoom.getName());
 
-        boolean isPreferredBuilding = selectedRoom.getDay().equals(finalPreferredBuildings.get(0));
-        int distanceToPreferred = calculateDistance(selectedRoom.getDay(), finalPreferredBuildings.get(0));
+        boolean isPreferredBuilding = selectedRoom.getBuilding().equals(finalPreferredBuildings.get(0));
+        int distanceToPreferred = calculateDistance(selectedRoom.getBuilding(), finalPreferredBuildings.get(0));
 
         return createRoomPickResult(selectedRoom, distanceToPreferred, isPreferredBuilding);
     }
@@ -387,12 +387,12 @@ public class RoomServiceImpl implements RoomService {
         int score = 0;
 
         // Highest priority: same room as before
-        if (existingRoom != null && room.getPhong().equals(existingRoom)) {
+        if (existingRoom != null && room.getName().equals(existingRoom)) {
             return -10000;
         }
 
         // Building priority and distance optimization
-        String building = room.getDay();
+        String building = room.getBuilding();
         int buildingIndex = preferredBuildings.indexOf(building);
         if (buildingIndex >= 0) {
             // Preferred building: lower index = higher priority
@@ -415,7 +415,7 @@ public class RoomServiceImpl implements RoomService {
 
     private Room findRoomByCode(List<Room> rooms, String roomCode) {
         return rooms.stream()
-                .filter(r -> r.getPhong().equals(roomCode))
+                .filter(r -> r.getName().equals(roomCode))
                 .findFirst()
                 .orElse(null);
     }
@@ -426,7 +426,7 @@ public class RoomServiceImpl implements RoomService {
         // Check occupation
         String roomUniqueCode = buildRoomUniqueCode(room);
         String key = buildOccupationKey(roomUniqueCode, thu, kip);
-        String legacyKey = buildLegacyOccupationKey(room.getPhong(), thu, kip);
+        String legacyKey = buildLegacyOccupationKey(room.getName(), thu, kip);
         if (occupied.contains(key) || occupied.contains(legacyKey))
             return false;
 
@@ -443,7 +443,7 @@ public class RoomServiceImpl implements RoomService {
             throw new IllegalArgumentException("Phòng học không được null");
         }
         if (room.getType() == null) {
-            throw new IllegalStateException("Loại phòng của " + room.getPhong() + " không được null");
+            throw new IllegalStateException("Loại phòng của " + room.getName() + " không được null");
         }
 
         String roomType = room.getType().name().toLowerCase();
@@ -546,16 +546,16 @@ public class RoomServiceImpl implements RoomService {
     private RoomPickResult createRoomPickResult(Room room, int distanceScore,
             boolean isPreferred) {
         return RoomPickResult.builder()
-                .roomCode(room.getPhong())
+                .roomCode(room.getName())
                 .roomId(buildRoomUniqueCode(room))
-                .building(room.getDay())
+                .building(room.getBuilding())
                 .distanceScore(distanceScore)
                 .isPreferredBuilding(isPreferred)
                 .build();
     }
 
     private String buildRoomUniqueCode(Room room) {
-        return room.getPhong() + "-" + room.getDay();
+        return room.getName() + "-" + room.getBuilding();
     }
 
     private String buildOccupationKey(String roomUniqueCode, Integer thu, Integer kip) {
@@ -633,9 +633,9 @@ public class RoomServiceImpl implements RoomService {
     private RoomResponse convertToResponse(Room room) {
         return RoomResponse.builder()
                 .id(room.getId())
-                .phong(room.getPhong())
+                .name(room.getName())
                 .capacity(room.getCapacity())
-                .day(room.getDay())
+                .building(room.getBuilding())
                 .type(room.getType())
                 .typeDisplayName(room.getType().getDisplayName())
                 .status(room.getStatus())
