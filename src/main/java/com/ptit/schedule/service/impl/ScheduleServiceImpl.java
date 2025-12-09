@@ -102,7 +102,7 @@ public class ScheduleServiceImpl implements ScheduleService {
      * Tạo thời khóa biểu cho danh sách môn học
      */
     @Override
-    public TKBBatchResponse simulateExcelFlowBatch(TKBBatchRequest request) {
+    public TKBBatchResponse generateSchedule(TKBBatchRequest request) {
         // Lấy thông tin từ request
         Long userId = request.getUserId();
 

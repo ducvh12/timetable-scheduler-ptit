@@ -197,7 +197,7 @@ public class ScheduleController {
             }
         }
         
-        TKBBatchResponse response = scheduleService.simulateExcelFlowBatch(request);
+        TKBBatchResponse response = scheduleService.generateSchedule(request);
         return ResponseEntity.ok(response);
     }
 
@@ -250,7 +250,7 @@ public class ScheduleController {
                 .items(Collections.singletonList(commonSubjectRequest))
                 .build();
 
-        TKBBatchResponse response = scheduleService.simulateExcelFlowBatch(batchRequest);
+        TKBBatchResponse response = scheduleService.generateSchedule(batchRequest);
 
         boolean hasRoomAssigned = response.getItems().stream()
                 .flatMap(item -> item.getRows().stream())
