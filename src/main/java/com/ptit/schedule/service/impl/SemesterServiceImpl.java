@@ -3,6 +3,7 @@ package com.ptit.schedule.service.impl;
 import com.ptit.schedule.dto.SemesterRequest;
 import com.ptit.schedule.dto.SemesterResponse;
 import com.ptit.schedule.entity.Semester;
+import com.ptit.schedule.repository.RoomOccupancyRepository;
 import com.ptit.schedule.repository.SemesterRepository;
 import com.ptit.schedule.service.SemesterService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 public class SemesterServiceImpl implements SemesterService {
     
     private final SemesterRepository semesterRepository;
+    private final RoomOccupancyRepository roomOccupancyRepository;
     
     @Override
     @Transactional(readOnly = true)
@@ -120,6 +122,11 @@ public class SemesterServiceImpl implements SemesterService {
         if (!semesterRepository.existsById(id)) {
             throw new RuntimeException("Không tìm thấy học kỳ với ID: " + id);
         }
+        
+        // Xóa room_occupancies trước khi xóa semester
+        roomOccupancyRepository.deleteBySemesterId(id);
+        roomOccupancyRepository.flush();
+        
         semesterRepository.deleteById(id);
     }
     

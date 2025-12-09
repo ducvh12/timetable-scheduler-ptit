@@ -16,4 +16,16 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     List<Schedule> findByStudentYear(String studentYear);
     List<Schedule> findByUserId(Long userId);
     List<Schedule> findByUserIdOrderByIdAsc(Long userId);
+    
+    @Query("""
+        SELECT s FROM Schedule s 
+        JOIN s.subject sub 
+        JOIN sub.semester sem 
+        WHERE sem.semesterName = :semesterName 
+        AND sem.academicYear = :academicYear
+        """)
+    List<Schedule> findBySemesterNameAndAcademicYear(
+        @Param("semesterName") String semesterName,
+        @Param("academicYear") String academicYear
+    );
 }

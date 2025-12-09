@@ -240,7 +240,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
-    public void resetOccupiedRoomsRedis(Long userId, String academicYear, String semester) {
+    public void resetLastSlotIndexRedis(Long userId, String academicYear, String semester) {
         if (userId != null && academicYear != null && semester != null) {
             redisOccupiedRoomService.clearLastSlotIdx(userId, academicYear, semester);
         }

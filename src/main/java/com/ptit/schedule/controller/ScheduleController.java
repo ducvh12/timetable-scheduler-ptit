@@ -332,7 +332,7 @@ public class ScheduleController {
             @RequestParam String academicYear,
             @RequestParam String semester) {
         
-        scheduleService.resetOccupiedRoomsRedis(userId, academicYear, semester);
+        scheduleService.resetLastSlotIndexRedis(userId, academicYear, semester);
 
         Map<String, Object> result = new HashMap<>();
         result.put("userId", userId);

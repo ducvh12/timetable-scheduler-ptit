@@ -22,6 +22,6 @@ public interface ScheduleService {
     void commitSessionToRedis(Long userId, String academicYear, String semester);
     void resetState();
     void resetOccupiedRooms();
-    void resetOccupiedRoomsRedis(Long userId, String academicYear, String semester);
+    void resetLastSlotIndexRedis(Long userId, String academicYear, String semester);
     Map<String, Integer> getOccupiedRoomsInfo();
 }

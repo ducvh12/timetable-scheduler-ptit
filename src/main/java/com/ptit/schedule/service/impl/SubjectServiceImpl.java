@@ -6,6 +6,7 @@ import com.ptit.schedule.entity.*;
 import com.ptit.schedule.exception.InvalidDataException;
 import com.ptit.schedule.exception.ResourceNotFoundException;
 import com.ptit.schedule.repository.*;
+import com.ptit.schedule.service.ScheduleService;
 import com.ptit.schedule.service.SubjectService;
 import com.ptit.schedule.specification.SubjectSpecification;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,8 @@ public class SubjectServiceImpl implements SubjectService {
     private final MajorRepository majorRepository;
     private final FacultyRepository facultyRepository;
     private final SemesterRepository semesterRepository;
+    private final ScheduleRepository scheduleRepository;
+    private final ScheduleService scheduleService;
     
     /**
      * Lấy tất cả subjects
@@ -453,6 +456,19 @@ public class SubjectServiceImpl implements SubjectService {
             );
         }
         
+        // Step 1: Tìm và xóa tất cả schedules của học kỳ này
+        List<Schedule> schedules = scheduleRepository.findBySemesterNameAndAcademicYear(semesterName, academicYear);
+        if (!schedules.isEmpty()) {
+            scheduleRepository.deleteAll(schedules);
+            scheduleRepository.flush(); // Force flush để commit xóa schedules trước khi xóa subjects
+            log.info("Đã xóa {} schedules của học kỳ {} năm {}", schedules.size(), semesterName, academicYear);
+            
+            // Step 2: Reset Redis last_slot_index cho học kỳ này (pass null cho userId để reset toàn bộ)
+            scheduleService.resetLastSlotIndexRedis(null, academicYear, semesterName);
+            log.info("Đã reset Redis last_slot_index cho học kỳ {} năm {}", semesterName, academicYear);
+        }
+        
+        // Step 3: Xóa subjects
         int count = subjectRepository.deleteBySemesterNameAndAcademicYear(semesterName, academicYear);
         return count;
     }
