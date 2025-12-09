@@ -183,7 +183,7 @@ public class ScheduleController {
 
     @Operation(summary = "Generate TKB for batch subjects", description = "Tạo thời khóa biểu cho nhiều môn học")
     @PostMapping("/generate-batch")
-    public ResponseEntity<TKBBatchResponse> generateTKBBatch(@RequestBody TKBBatchRequest request) {
+    public ResponseEntity<TKBBatchResponse> generateSchedule(@RequestBody TKBBatchRequest request) {
         if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
             throw new InvalidDataException("Danh sách môn học không được rỗng");
         }
@@ -197,7 +197,7 @@ public class ScheduleController {
             }
         }
         
-        TKBBatchResponse response = scheduleService.simulateExcelFlowBatch(request);
+        TKBBatchResponse response = scheduleService.generateSchedule(request);
         return ResponseEntity.ok(response);
     }
 
@@ -250,7 +250,7 @@ public class ScheduleController {
                 .items(Collections.singletonList(commonSubjectRequest))
                 .build();
 
-        TKBBatchResponse response = scheduleService.simulateExcelFlowBatch(batchRequest);
+        TKBBatchResponse response = scheduleService.generateSchedule(batchRequest);
 
         boolean hasRoomAssigned = response.getItems().stream()
                 .flatMap(item -> item.getRows().stream())

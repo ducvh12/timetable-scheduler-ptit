@@ -107,17 +107,29 @@ public class DataLoaderService {
             return new String[]{"", ""};
         }
         
-        // Normalize first
-        String normalized = normalizeSemester(semester);
-        // Split by underscore: "HK1_2024-2025" -> ["HK1", "2024-2025"]
-        String[] parts = normalized.split("_", 2);
+        // Frontend gửi format: "Học kỳ 1 - 2024-2025"
+        // Cần tách thành: semesterName="Học kỳ 1", academicYear="2024-2025"
         
-        if (parts.length == 2) {
-            return new String[]{parts[0], parts[1]};
-        } else if (parts.length == 1) {
-            return new String[]{parts[0], ""};
+        // Try to split by " - " (with spaces)
+        if (semester.contains(" - ")) {
+            String[] parts = semester.split("\\s+-\\s+", 2);
+            if (parts.length == 2) {
+                return new String[]{parts[0].trim(), parts[1].trim()};
+            }
         }
-        return new String[]{"", ""};
+        
+        // Fallback: split by last space before year pattern (YYYY-YYYY)
+        // VD: "Học kỳ 1 2024-2025" -> ["Học kỳ 1", "2024-2025"]
+        if (semester.matches(".*\\s+\\d{4}-\\d{4}$")) {
+            int lastSpaceIndex = semester.lastIndexOf(' ');
+            return new String[]{
+                semester.substring(0, lastSpaceIndex).trim(),
+                semester.substring(lastSpaceIndex + 1).trim()
+            };
+        }
+        
+        // If no pattern matches, return as is
+        return new String[]{semester, ""};
     }
 
     /**
@@ -137,7 +149,8 @@ public class DataLoaderService {
     
     /**
      * Normalize semester name to avoid Unicode issues
-     * VD: "Học kỳ 1 2024-2025" -> "HK1_2024-2025"
+     * VD: "Học kỳ 1 - 2024-2025" -> "HK1_2024-2025"
+     *     "Học kỳ 1 2024-2025" -> "HK1_2024-2025"
      *     "Học kỳ 2 2024-2025" -> "HK2_2024-2025"
      *     "HK1 2024-2025" -> "HK1_2024-2025"
      *     "aaa 2024-2025" -> "aaa_2024-2025"
@@ -149,11 +162,12 @@ public class DataLoaderService {
         // Remove extra spaces and normalize
         semester = semester.trim().replaceAll("\\s+", " ");
         
+        // Remove standalone dash with spaces FIRST (VD: "Học kỳ 1 - 2024-2025" -> "Học kỳ 1 2024-2025")
+        // This handles the format from frontend dropdown
+        semester = semester.replaceAll("\\s+-\\s+", " ");
+        
         // Convert "Học kỳ X" to "HKX"
         semester = semester.replaceAll("(?i)h[oọôớờ][cçć]\\s*k[yỳýỵỹỷ]\\s*(\\d)", "HK$1");
-        
-        // Remove standalone dash with spaces (VD: "aaaa - 2024-2025" -> "aaaa 2024-2025")
-        semester = semester.replaceAll("\\s+-\\s+", " ");
         
         // Replace spaces with underscores (nhưng giữ nguyên dấu - trong năm học)
         // VD: "HK1 2024-2025" -> "HK1_2024-2025"

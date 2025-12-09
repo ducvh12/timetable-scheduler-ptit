@@ -25,7 +25,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final DataLoaderService dataLoaderService;
     private final RoomService roomService;
     private final SubjectRoomMappingService subjectRoomMappingService;
-    private final RedisOccupiedRoomService redisOccupiedRoomService;
+    private final RedisService redisOccupiedRoomService;
     private final SemesterRepository semesterRepository;
     private final SubjectRepository subjectRepository;
 
@@ -102,7 +102,7 @@ public class ScheduleServiceImpl implements ScheduleService {
      * Tạo thời khóa biểu cho danh sách môn học
      */
     @Override
-    public TKBBatchResponse simulateExcelFlowBatch(TKBBatchRequest request) {
+    public TKBBatchResponse generateSchedule(TKBBatchRequest request) {
         // Lấy thông tin từ request
         Long userId = request.getUserId();
 

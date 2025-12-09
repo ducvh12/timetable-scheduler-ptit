@@ -18,7 +18,7 @@ public interface ScheduleService {
     void deleteAllSchedules();
     
     // Timetable generation operations
-    TKBBatchResponse simulateExcelFlowBatch(TKBBatchRequest request);
+    TKBBatchResponse generateSchedule(TKBBatchRequest request);
     void commitSessionToRedis(Long userId, String academicYear, String semester);
     void resetState();
     void resetOccupiedRooms();
