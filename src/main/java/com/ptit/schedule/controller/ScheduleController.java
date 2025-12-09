@@ -183,7 +183,7 @@ public class ScheduleController {
 
     @Operation(summary = "Generate TKB for batch subjects", description = "Tạo thời khóa biểu cho nhiều môn học")
     @PostMapping("/generate-batch")
-    public ResponseEntity<TKBBatchResponse> generateTKBBatch(@RequestBody TKBBatchRequest request) {
+    public ResponseEntity<TKBBatchResponse> generateSchedule(@RequestBody TKBBatchRequest request) {
         if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
             throw new InvalidDataException("Danh sách môn học không được rỗng");
         }
