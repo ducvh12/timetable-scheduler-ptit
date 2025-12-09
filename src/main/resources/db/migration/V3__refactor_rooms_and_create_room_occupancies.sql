@@ -29,9 +29,7 @@ CREATE TABLE IF NOT EXISTS room_occupancies (
     period INT NOT NULL COMMENT 'Tiết học (1-6)',
     unique_key VARCHAR(50) NOT NULL COMMENT 'Format: roomCode|dayOfWeek|period (e.g., 404-A2|5|1)',
     note VARCHAR(500) COMMENT 'Ghi chú về lịch chiếm phòng này',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Thời gian tạo',
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Thời gian cập nhật',
-    
+
     -- Foreign key constraints
     CONSTRAINT fk_room_occupancy_room FOREIGN KEY (room_id) 
         REFERENCES rooms(id) ON DELETE CASCADE,

@@ -16,8 +16,8 @@ import java.util.List;
 @AllArgsConstructor
 public class RoomBulkStatusUpdateRequest {
 
-    @NotEmpty(message = "Danh sách mã phòng không được để trống")
-    private List<String> roomCodes;
+    @NotEmpty(message = "Danh sách ID phòng không được để trống")
+    private List<Long> roomIds;
 
     @NotNull(message = "Trạng thái phòng không được để trống")
     private RoomStatus status;

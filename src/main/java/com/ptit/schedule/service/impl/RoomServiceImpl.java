@@ -115,28 +115,25 @@ public class RoomServiceImpl implements RoomService {
     @Override
     public List<RoomResponse> bulkUpdateRoomStatus(RoomBulkStatusUpdateRequest request) {
         List<RoomResponse> updatedRooms = new ArrayList<>();
-        List<String> notFoundRooms = new ArrayList<>();
+        List<Long> notFoundRoomIds = new ArrayList<>();
 
-        for (String roomCode : request.getRoomCodes()) {
-            // Parse roomCode format: "G06-A2" or "104-A2" -> phong="G06" or "104", day="A2"
-            String[] parts = roomCode.split("-");
-            if (parts.length != 2) {
-                notFoundRooms.add(roomCode);
-                continue;
-            }
-
-            String phong = parts[0];
-            String day = parts[1];
-
-            Optional<Room> roomOpt = roomRepository.findByPhongAndDay(phong, day);
+        for (Long roomId : request.getRoomIds()) {
+            Optional<Room> roomOpt = roomRepository.findById(roomId);
             if (roomOpt.isPresent()) {
                 Room room = roomOpt.get();
                 room.setStatus(request.getStatus());
                 Room updatedRoom = roomRepository.save(room);
                 updatedRooms.add(convertToResponse(updatedRoom));
             } else {
-                notFoundRooms.add(roomCode);
+                notFoundRoomIds.add(roomId);
             }
+        }
+
+        if (!notFoundRoomIds.isEmpty()) {
+            throw new ResourceNotFoundException(
+                    "Không tìm thấy các phòng với ID: " + notFoundRoomIds.stream()
+                            .map(String::valueOf)
+                            .collect(Collectors.joining(", ")));
         }
 
         return updatedRooms;
