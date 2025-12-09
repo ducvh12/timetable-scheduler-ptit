@@ -5,6 +5,7 @@ import com.ptit.schedule.dto.SemesterResponse;
 import com.ptit.schedule.entity.Semester;
 import com.ptit.schedule.repository.RoomOccupancyRepository;
 import com.ptit.schedule.repository.SemesterRepository;
+import com.ptit.schedule.repository.TKBTemplateRepository;
 import com.ptit.schedule.service.SemesterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ public class SemesterServiceImpl implements SemesterService {
     
     private final SemesterRepository semesterRepository;
     private final RoomOccupancyRepository roomOccupancyRepository;
+    private final TKBTemplateRepository tkbTemplateRepository;
     
     @Override
     @Transactional(readOnly = true)
@@ -119,14 +121,17 @@ public class SemesterServiceImpl implements SemesterService {
     
     @Override
     public void deleteSemester(Long id) {
-        if (!semesterRepository.existsById(id)) {
-            throw new RuntimeException("Không tìm thấy học kỳ với ID: " + id);
-        }
+        Semester semester = semesterRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy học kỳ với ID: " + id));
         
-        // Xóa room_occupancies trước khi xóa semester
+        // Xóa tkb_templates trước
+        tkbTemplateRepository.deleteBySemester(semester);
+        
+        // Xóa room_occupancies
         roomOccupancyRepository.deleteBySemesterId(id);
         roomOccupancyRepository.flush();
         
+        // Xóa semester
         semesterRepository.deleteById(id);
     }
     
