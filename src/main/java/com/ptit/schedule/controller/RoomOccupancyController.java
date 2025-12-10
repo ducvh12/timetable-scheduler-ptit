@@ -88,4 +88,18 @@ public class RoomOccupancyController {
                 "available", isAvailable,
                 "status", isAvailable ? "Phòng trống" : "Phòng đã được sử dụng"));
     }
+
+    @DeleteMapping("/semester/{semesterId}")
+    @Operation(summary = "Delete all room occupancies in a semester", description = "Delete all room occupancy records for a specific semester")
+    public ResponseEntity<Map<String, Object>> deleteOccupanciesBySemester(
+            @Parameter(description = "Semester ID") @PathVariable Long semesterId) {
+        log.info("DELETE /api/v1/room-occupancies/semester/{}", semesterId);
+
+        roomOccupancyService.deleteOccupanciesBySemester(semesterId);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Đã xóa thành công tất cả room occupancies của học kỳ",
+                "semesterId", semesterId,
+                "status", "success"));
+    }
 }

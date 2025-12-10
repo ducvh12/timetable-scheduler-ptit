@@ -546,6 +546,7 @@ public class RoomServiceImpl implements RoomService {
                 .roomCode(room.getName())
                 .roomId(buildRoomUniqueCode(room))
                 .building(room.getBuilding())
+                .databaseRoomId(room.getId())
                 .distanceScore(distanceScore)
                 .isPreferredBuilding(isPreferred)
                 .build();

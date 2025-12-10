@@ -30,4 +30,9 @@ public interface RoomOccupancyService {
      * Check xem 1 slot có trống không
      */
     boolean isSlotAvailable(Long roomId, Long semesterId, Integer dayOfWeek, Integer period);
+
+    /**
+     * Xóa tất cả room occupancies của 1 semester
+     */
+    void deleteOccupanciesBySemester(Long semesterId);
 }
