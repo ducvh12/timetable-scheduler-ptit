@@ -443,7 +443,15 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     private int mapRegularSlotTo60PeriodSlot(int regularSlotIdx) {
-        int pairIndex = (regularSlotIdx / 2) + 1;
+        // Khi lastSlotIdx = -1 (bắt đầu mới), phải bắt đầu từ index 0 (Thứ 2-3 kíp 1)
+        if (regularSlotIdx == -1) {
+            return 0;
+        }
+        
+        // Map regular slot (12 slots) sang 60-period slot (12 slots)
+        // Regular: 0,1,2,3,4,5,6,7,8,9,10,11
+        // 60-period: mỗi cặp regular slots (0-1) map sang 4 slots 60-period
+        int pairIndex = regularSlotIdx / 2;  // 0,0,1,1,2,2,3,3,4,4,5,5
         int slot60Index = (pairIndex * 4) % ROTATING_SLOTS_60.size();
         return slot60Index;
     }
