@@ -118,4 +118,31 @@ public interface RoomOccupancyRepository extends JpaRepository<RoomOccupancy, Lo
         @Query("DELETE FROM RoomOccupancy ro WHERE ro.uniqueKey IN :uniqueKeys AND ro.semester.id = :semesterId")
         void deleteByUniqueKeysAndSemesterId(@Param("uniqueKeys") Set<String> uniqueKeys,
                         @Param("semesterId") Long semesterId);
+
+        /**
+         * Find all room occupancies for a specific semester, day and period
+         * 
+         * @param semesterId Semester ID
+         * @param dayOfWeek  Day of week (2-7)
+         * @param period     Period (1-6)
+         * @return List of room occupancies
+         */
+        @Query("SELECT ro FROM RoomOccupancy ro WHERE ro.semester.id = :semesterId " +
+                        "AND ro.dayOfWeek = :dayOfWeek AND ro.period = :period")
+        List<RoomOccupancy> findBySemesterIdAndDayOfWeekAndPeriod(
+                        @Param("semesterId") Long semesterId,
+                        @Param("dayOfWeek") Integer dayOfWeek,
+                        @Param("period") Integer period);
+
+        /**
+         * Check if room occupancy exists
+         * 
+         * @param roomId     Room ID
+         * @param semesterId Semester ID
+         * @param dayOfWeek  Day of week (2-7)
+         * @param period     Period (1-6)
+         * @return true if exists
+         */
+        boolean existsByRoomIdAndSemesterIdAndDayOfWeekAndPeriod(
+                        Long roomId, Long semesterId, Integer dayOfWeek, Integer period);
 }
