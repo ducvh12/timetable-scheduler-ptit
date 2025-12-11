@@ -38,7 +38,7 @@ public class ScheduleController {
     private final com.ptit.schedule.repository.RoomRepository roomRepository;
 
     @PostMapping("/save-batch")
-    public ResponseEntity<String> saveBatch(@RequestBody List<SaveScheduleRequest> scheduleRequests) {
+    public ResponseEntity<String> saveSchedule(@RequestBody List<SaveScheduleRequest> scheduleRequests) {
         if (scheduleRequests == null || scheduleRequests.isEmpty()) {
             throw new InvalidDataException("Danh sách lịch học không được rỗng");
         }
@@ -61,15 +61,9 @@ public class ScheduleController {
                 throw new InvalidDataException("Template ID không được rỗng");
             }
             
-            // Load Subject from database
-            Subject subject = subjectRepository.findById(request.getSubjectId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Không tìm thấy môn học với ID: " + request.getSubjectId()));
-            
-            // Load TKBTemplate from database
-            TKBTemplate template = tkbTemplateRepository.findById(request.getTemplateDatabaseId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Không tìm thấy template với ID: " + request.getTemplateDatabaseId()));
+            // Use reference instead of loading from database (faster, no extra queries)
+            Subject subject = subjectRepository.getReferenceById(request.getSubjectId());
+            TKBTemplate template = tkbTemplateRepository.getReferenceById(request.getTemplateDatabaseId());
             
             // Find Room by roomNumber (if provided)
             // Format: "402-A2" -> name="402", building="A2"
