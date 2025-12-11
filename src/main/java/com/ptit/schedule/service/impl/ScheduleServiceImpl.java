@@ -139,23 +139,24 @@ public class ScheduleServiceImpl implements ScheduleService {
         System.out.println("   - userId: " + userId);
         System.out.println("   - academicYear: " + academicYear);
         System.out.println("   - semester (raw): " + semester);
-        
+
         // Normalize semester: "1" -> "HK1", "2" -> "HK2", "HK1" -> "HK1"
         String normalizedSemester = semester;
         if (semester != null && semester.matches("^[12]$")) {
             normalizedSemester = "HK" + semester;
         }
         System.out.println("   - semester (normalized): " + normalizedSemester);
-        
+
         // Load template data for this semester
         String semesterKey = normalizedSemester + " " + academicYear; // VD: "HK1 2024-2025"
         System.out.println("   - semesterKey for loading: " + semesterKey);
-        
+
         List<DataLoaderService.TKBTemplateRow> dataRows = dataLoaderService.loadTemplateData(semesterKey);
         if (dataRows.isEmpty()) {
-            throw new InvalidDataException("Chưa có dữ liệu lịch mẫu cho " + semesterKey + ". Vui lòng import dữ liệu lịch mẫu trước khi sinh TKB.");
+            throw new InvalidDataException("Chưa có dữ liệu lịch mẫu cho " + semesterKey
+                    + ". Vui lòng import dữ liệu lịch mẫu trước khi sinh TKB.");
         }
-        
+
         System.out.println("✅ [ScheduleService] Loaded " + dataRows.size() + " templates for " + semesterKey);
 
         List<Room> rooms = loadRooms();
@@ -362,7 +363,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     private TKBRowResult emitRow(int cls, TKBRequest payload, DataLoaderService.TKBTemplateRow row, int aiBefore,
-            String roomCode, String maPhong) {
+            String roomCode, String maPhong, Long roomId) {
         int L = row.getPeriodLength();
         Integer thu = row.getDayOfWeek();
         Integer kip = row.getKip();
@@ -381,6 +382,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                 .tietBd(tietBd)
                 .L(L)
                 .phong(maPhong)
+                .roomId(roomId)
                 .AH(AH)
                 .AI(aiBefore)
                 .AJ(aj)
@@ -401,21 +403,20 @@ public class ScheduleServiceImpl implements ScheduleService {
         try {
             // Normalize semester
             String normalizedSemester = normalizeSemesterString(payload.getSemester());
-            
+
             // Find matching subjects and take first one
             List<Subject> subjects = subjectRepository.findAllBySubjectCodeAndSemesterAndAcademicYear(
-                payload.getMa_mon(), 
-                normalizedSemester, 
-                payload.getAcademicYear()
-            );
-            
+                    payload.getMa_mon(),
+                    normalizedSemester,
+                    payload.getAcademicYear());
+
             if (subjects.isEmpty()) {
-                System.out.println("⚠️ Subject not found - Code: " + payload.getMa_mon() + 
-                    ", Semester: " + normalizedSemester + 
-                    ", AcademicYear: " + payload.getAcademicYear());
+                System.out.println("⚠️ Subject not found - Code: " + payload.getMa_mon() +
+                        ", Semester: " + normalizedSemester +
+                        ", AcademicYear: " + payload.getAcademicYear());
                 return null;
             }
-            
+
             return subjects.get(0).getId();
         } catch (Exception e) {
             System.err.println("❌ Error finding subject: " + e.getMessage());
@@ -447,11 +448,11 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (regularSlotIdx == -1) {
             return 0;
         }
-        
+
         // Map regular slot (12 slots) sang 60-period slot (12 slots)
         // Regular: 0,1,2,3,4,5,6,7,8,9,10,11
         // 60-period: mỗi cặp regular slots (0-1) map sang 4 slots 60-period
-        int pairIndex = regularSlotIdx / 2;  // 0,0,1,1,2,2,3,3,4,4,5,5
+        int pairIndex = regularSlotIdx / 2; // 0,0,1,1,2,2,3,3,4,4,5,5
         int slot60Index = (pairIndex * 4) % ROTATING_SLOTS_60.size();
         return slot60Index;
     }
@@ -471,6 +472,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         for (int cls = 1; cls <= classes; cls++) {
             String classRoomCode = null;
             String classRoomMaPhong = null;
+            Long classRoomId = null;
 
             int slotIdx;
             if (targetTotal == 14) {
@@ -519,14 +521,16 @@ public class ScheduleServiceImpl implements ScheduleService {
                     if (assignment != null) {
                         classRoomCode = assignment.getRoomCode();
                         classRoomMaPhong = assignment.getMaPhong();
+                        classRoomId = assignment.getRoomId();
                     }
                 }
 
                 Integer currentTietBd = row.getStartPeriod();
                 String rowRoomCode = (currentTietBd != null && currentTietBd == 12) ? null : classRoomCode;
                 String rowRoomMaPhong = (currentTietBd != null && currentTietBd == 12) ? null : classRoomMaPhong;
+                Long rowRoomId = (currentTietBd != null && currentTietBd == 12) ? null : classRoomId;
 
-                TKBRowResult resultRow = emitRow(cls, tkbRequest, row, ai, rowRoomCode, rowRoomMaPhong);
+                TKBRowResult resultRow = emitRow(cls, tkbRequest, row, ai, rowRoomCode, rowRoomMaPhong, rowRoomId);
                 resultRows.add(resultRow);
 
                 ai -= ah;
@@ -563,6 +567,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
             String classRoomCode = null;
             String classRoomMaPhong = null;
+            Long classRoomId = null;
 
             for (Integer currentDay : dayPairSlot.getDays()) {
                 String groupKey = currentDay + "_" + targetKip;
@@ -578,6 +583,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                         if (assignment != null) {
                             classRoomCode = assignment.getRoomCode();
                             classRoomMaPhong = assignment.getMaPhong();
+                            classRoomId = assignment.getRoomId();
 
                             markRoomOccupiedForDays(classRoomMaPhong, dayPairSlot.getDays(), targetKip, occupiedRooms);
                         }
@@ -587,8 +593,9 @@ public class ScheduleServiceImpl implements ScheduleService {
                     Integer currentTietBd = row.getStartPeriod();
                     String rowRoomCode = (currentTietBd != null && currentTietBd == 12) ? null : classRoomCode;
                     String rowRoomMaPhong = (currentTietBd != null && currentTietBd == 12) ? null : classRoomMaPhong;
+                    Long rowRoomId = (currentTietBd != null && currentTietBd == 12) ? null : classRoomId;
 
-                    TKBRowResult resultRow = emitRow(cls, tkbRequest, row, ah, rowRoomCode, rowRoomMaPhong);
+                    TKBRowResult resultRow = emitRow(cls, tkbRequest, row, ah, rowRoomCode, rowRoomMaPhong, rowRoomId);
                     resultRows.add(resultRow);
                 }
             }
@@ -650,7 +657,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         occupiedRooms.add(occupationKey);
         sessionOccupiedRooms.add(occupationKey);
 
-        return new RoomAssignment(roomResult.getRoomCode(), roomResult.getMaPhong());
+        return new RoomAssignment(roomResult.getRoomCode(), roomResult.getMaPhong(), roomResult.getDatabaseRoomId());
     }
 
     private void markRoomOccupiedForDays(String maPhong, List<Integer> days,
@@ -677,10 +684,12 @@ public class ScheduleServiceImpl implements ScheduleService {
     private static class RoomAssignment {
         private final String roomCode;
         private final String maPhong;
+        private final Long roomId;
 
-        public RoomAssignment(String roomCode, String maPhong) {
+        public RoomAssignment(String roomCode, String maPhong, Long roomId) {
             this.roomCode = roomCode;
             this.maPhong = maPhong;
+            this.roomId = roomId;
         }
 
         public String getRoomCode() {
@@ -689,6 +698,10 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         public String getMaPhong() {
             return maPhong;
+        }
+
+        public Long getRoomId() {
+            return roomId;
         }
     }
 }

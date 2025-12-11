@@ -19,7 +19,7 @@ public class TKBRowResult {
     private Integer lop; // Class number
     @JsonProperty("ma_mon")
     private String maMon; // Subject code
-    @JsonProperty("ten_mon") 
+    @JsonProperty("ten_mon")
     private String tenMon; // Subject name
     private Integer kip; // Session (1-4)
     private Integer thu; // Day of week (2-7)
@@ -27,6 +27,8 @@ public class TKBRowResult {
     private Integer tietBd; // Starting period
     private Integer L; // L value from template
     private String phong; // Room code (ma_phong)
+    @JsonProperty("room_id")
+    private Long roomId; // Database ID của Room entity
     private Integer AH; // Calculated AH value
     private Integer AI; // AI value (remaining periods)
     private Integer AJ; // AJ value (AI - AH)

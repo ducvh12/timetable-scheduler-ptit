@@ -13,6 +13,7 @@ public class RoomPickResult {
     private String roomCode;
     private String roomId;
     private String building;
+    private Long databaseRoomId; // Database ID của Room entity
     private Integer distanceScore;
     private boolean isPreferredBuilding;
 
