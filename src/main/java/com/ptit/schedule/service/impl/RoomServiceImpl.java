@@ -721,16 +721,15 @@ public class RoomServiceImpl implements RoomService {
                             row.getMaMon());
 
                     if (roomResult.hasRoom()) {
-                        String roomCode = roomResult.getRoomCode();
                         String maPhong = roomResult.getMaPhong();
                         Long databaseRoomId = roomResult.getDatabaseRoomId();
 
-                        // Update row
-                        row.setPhong(roomCode);
+                        // Update row - phong should be full format (e.g., "102-A2")
+                        row.setPhong(maPhong); // Use maPhong instead of roomCode
                         row.setRoomId(databaseRoomId);
 
                         // Cache for this class
-                        classRoomCache.put(lop, roomCode);
+                        classRoomCache.put(lop, maPhong); // Cache maPhong
                         classRoomIdCache.put(lop, databaseRoomId);
 
                         // Mark room as occupied
