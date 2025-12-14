@@ -470,9 +470,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         int idx = 0;
 
         for (int cls = 1; cls <= classes; cls++) {
-            String classRoomCode = null;
-            String classRoomMaPhong = null;
-            Long classRoomId = null;
+            // Room assignment removed - will be done separately via assignRoomsToSchedule()
 
             int slotIdx;
             if (targetTotal == 14) {
@@ -516,21 +514,8 @@ public class ScheduleServiceImpl implements ScheduleService {
                     continue;
                 }
 
-                if (classRoomCode == null) {
-                    RoomAssignment assignment = assignRoomForClass(tkbRequest, row, rooms, occupiedRooms);
-                    if (assignment != null) {
-                        classRoomCode = assignment.getRoomCode();
-                        classRoomMaPhong = assignment.getMaPhong();
-                        classRoomId = assignment.getRoomId();
-                    }
-                }
-
-                Integer currentTietBd = row.getStartPeriod();
-                String rowRoomCode = (currentTietBd != null && currentTietBd == 12) ? null : classRoomCode;
-                String rowRoomMaPhong = (currentTietBd != null && currentTietBd == 12) ? null : classRoomMaPhong;
-                Long rowRoomId = (currentTietBd != null && currentTietBd == 12) ? null : classRoomId;
-
-                TKBRowResult resultRow = emitRow(cls, tkbRequest, row, ai, rowRoomCode, rowRoomMaPhong, rowRoomId);
+                // No room assignment - always pass null for room fields
+                TKBRowResult resultRow = emitRow(cls, tkbRequest, row, ai, null, null, null);
                 resultRows.add(resultRow);
 
                 ai -= ah;
@@ -565,9 +550,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
             Integer targetKip = dayPairSlot.getKip();
 
-            String classRoomCode = null;
-            String classRoomMaPhong = null;
-            Long classRoomId = null;
+            // Room assignment removed - will be done separately via assignRoomsToSchedule()
 
             for (Integer currentDay : dayPairSlot.getDays()) {
                 String groupKey = currentDay + "_" + targetKip;
@@ -578,24 +561,10 @@ public class ScheduleServiceImpl implements ScheduleService {
                 }
 
                 for (DataLoaderService.TKBTemplateRow row : groupRows) {
-                    if (classRoomCode == null) {
-                        RoomAssignment assignment = assignRoomForClass(tkbRequest, row, rooms, occupiedRooms);
-                        if (assignment != null) {
-                            classRoomCode = assignment.getRoomCode();
-                            classRoomMaPhong = assignment.getMaPhong();
-                            classRoomId = assignment.getRoomId();
-
-                            markRoomOccupiedForDays(classRoomMaPhong, dayPairSlot.getDays(), targetKip, occupiedRooms);
-                        }
-                    }
-
                     int ah = calculateAH(row);
-                    Integer currentTietBd = row.getStartPeriod();
-                    String rowRoomCode = (currentTietBd != null && currentTietBd == 12) ? null : classRoomCode;
-                    String rowRoomMaPhong = (currentTietBd != null && currentTietBd == 12) ? null : classRoomMaPhong;
-                    Long rowRoomId = (currentTietBd != null && currentTietBd == 12) ? null : classRoomId;
 
-                    TKBRowResult resultRow = emitRow(cls, tkbRequest, row, ah, rowRoomCode, rowRoomMaPhong, rowRoomId);
+                    // No room assignment - always pass null for room fields
+                    TKBRowResult resultRow = emitRow(cls, tkbRequest, row, ah, null, null, null);
                     resultRows.add(resultRow);
                 }
             }

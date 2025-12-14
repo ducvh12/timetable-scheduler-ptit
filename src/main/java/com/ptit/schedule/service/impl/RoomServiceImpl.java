@@ -4,15 +4,23 @@ import com.ptit.schedule.dto.RoomRequest;
 import com.ptit.schedule.dto.RoomResponse;
 import com.ptit.schedule.dto.RoomStatusUpdateRequest;
 import com.ptit.schedule.dto.RoomBulkStatusUpdateRequest;
+import com.ptit.schedule.dto.TKBBatchResponse;
+import com.ptit.schedule.dto.TKBBatchItemResponse;
+import com.ptit.schedule.dto.TKBRequest;
+import com.ptit.schedule.dto.TKBRowResult;
 import com.ptit.schedule.entity.Room;
 import com.ptit.schedule.entity.RoomStatus;
 import com.ptit.schedule.entity.RoomType;
+import com.ptit.schedule.entity.Semester;
 import com.ptit.schedule.dto.RoomPickResult;
 import com.ptit.schedule.exception.ResourceNotFoundException;
+import com.ptit.schedule.exception.InvalidDataException;
 import com.ptit.schedule.repository.RoomRepository;
+import com.ptit.schedule.repository.SemesterRepository;
 import com.ptit.schedule.service.RoomService;
 import com.ptit.schedule.service.SubjectRoomMappingService;
 import com.ptit.schedule.service.MajorBuildingPreferenceService;
+import com.ptit.schedule.service.DataLoaderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,6 +39,8 @@ public class RoomServiceImpl implements RoomService {
     private final RoomRepository roomRepository;
     private final SubjectRoomMappingService subjectRoomMappingService;
     private final MajorBuildingPreferenceService majorBuildingPreferenceService;
+    private final SemesterRepository semesterRepository;
+    private final DataLoaderService dataLoaderService;
 
     @Override
     @Transactional(readOnly = true)
@@ -640,5 +650,109 @@ public class RoomServiceImpl implements RoomService {
                 .statusDisplayName(room.getStatus().getDisplayName())
                 .note(room.getNote())
                 .build();
+    }
+
+    // ==================== ROOM ASSIGNMENT FOR TKB ====================
+
+    @Override
+    public TKBBatchResponse assignRoomsToSchedule(
+            TKBBatchResponse existingSchedule,
+            String academicYear,
+            String semester) {
+        log.info("🏠 Assigning rooms to existing schedule for {}/{}", semester, academicYear);
+
+        // Auto-detect and set semesterId
+        Semester semesterEntity = semesterRepository
+                .findBySemesterNameAndAcademicYear(semester, academicYear)
+                .orElseThrow(() -> new InvalidDataException(
+                        "Không tìm thấy học kỳ: " + semester + " - " + academicYear));
+        dataLoaderService.setCurrentSemesterId(semesterEntity.getId());
+
+        // Load rooms from database
+        List<Room> rooms = roomRepository.findAll();
+        log.info("📦 Loaded {} rooms", rooms.size());
+
+        // Load global occupied rooms
+        Set<Object> occupiedRooms = dataLoaderService.loadGlobalOccupiedRooms();
+        log.info("🔒 Loaded {} globally occupied rooms", occupiedRooms.size());
+
+        int totalRoomsAssigned = 0;
+
+        // Iterate through each subject's schedule
+        for (TKBBatchItemResponse item : existingSchedule.getItems()) {
+            TKBRequest input = item.getInput();
+            log.info("🔄 Processing subject: {} ({})", input.getTen_mon(), input.getMa_mon());
+
+            // Group rows by class number to assign same room for same class
+            Map<Integer, String> classRoomCache = new HashMap<>();
+            Map<Integer, Long> classRoomIdCache = new HashMap<>();
+
+            for (TKBRowResult row : item.getRows()) {
+                Integer tietBd = row.getTietBd();
+                Integer lop = row.getLop();
+
+                // Skip if tiet 12 (no room needed) or already has room
+                if (tietBd == null || tietBd == 12 || row.getPhong() != null) {
+                    continue;
+                }
+
+                // Check if we already assigned room for this class
+                if (classRoomCache.containsKey(lop)) {
+                    row.setPhong(classRoomCache.get(lop));
+                    row.setRoomId(classRoomIdCache.get(lop));
+                    continue;
+                }
+
+                // Pick room for this row
+                try {
+                    String subjectType = input.getSubject_type();
+
+                    RoomPickResult roomResult = pickRoom(
+                            rooms,
+                            row.getSiSoMotLop(),
+                            occupiedRooms,
+                            row.getThu(),
+                            row.getKip(),
+                            subjectType,
+                            row.getStudentYear(),
+                            row.getHeDacThu(),
+                            null,
+                            row.getNganh(),
+                            row.getMaMon());
+
+                    if (roomResult.hasRoom()) {
+                        String roomCode = roomResult.getRoomCode();
+                        String maPhong = roomResult.getMaPhong();
+                        Long databaseRoomId = roomResult.getDatabaseRoomId();
+
+                        // Update row
+                        row.setPhong(roomCode);
+                        row.setRoomId(databaseRoomId);
+
+                        // Cache for this class
+                        classRoomCache.put(lop, roomCode);
+                        classRoomIdCache.put(lop, databaseRoomId);
+
+                        // Mark room as occupied
+                        String occupationKey = maPhong + "|" + row.getThu() + "|" + row.getKip();
+                        occupiedRooms.add(occupationKey);
+
+                        totalRoomsAssigned++;
+                    } else {
+                        log.warn("⚠️ No suitable room found for class {}, {}/{}/{}",
+                                lop, row.getThu(), row.getKip(), row.getTietBd());
+                    }
+                } catch (Exception e) {
+                    log.error("❌ Error assigning room for class {}: {}", lop, e.getMessage());
+                }
+            }
+        }
+
+        log.info("✅ Assigned {} rooms total", totalRoomsAssigned);
+
+        // Save occupied rooms to database
+        dataLoaderService.saveGlobalOccupiedRooms(occupiedRooms);
+
+        return existingSchedule;
     }
 }

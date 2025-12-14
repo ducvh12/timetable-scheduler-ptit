@@ -5,6 +5,7 @@ import com.ptit.schedule.dto.RoomRequest;
 import com.ptit.schedule.dto.RoomResponse;
 import com.ptit.schedule.dto.RoomStatusUpdateRequest;
 import com.ptit.schedule.dto.RoomBulkStatusUpdateRequest;
+import com.ptit.schedule.dto.TKBBatchResponse;
 import com.ptit.schedule.entity.RoomStatus;
 import com.ptit.schedule.entity.RoomType;
 import com.ptit.schedule.service.RoomService;
@@ -173,8 +174,7 @@ public class RoomController {
     public ResponseEntity<Map<String, Object>> saveResults(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String academicYear,
-            @RequestParam(required = false) String semester
-    ) {
+            @RequestParam(required = false) String semester) {
         try {
             scheduleService.commitSessionToRedis(userId, academicYear, semester);
 
@@ -257,6 +257,39 @@ public class RoomController {
         return ResponseEntity.ok(ApiResponse.<Void>builder()
                 .success(true)
                 .message("Xóa mapping cho môn " + maMon + " thành công")
+                .build());
+    }
+
+    // Room Assignment for TKB
+    @PostMapping("/assign-rooms")
+    public ResponseEntity<ApiResponse<TKBBatchResponse>> assignRoomsToSchedule(
+            @RequestBody TKBBatchResponse scheduleWithoutRooms,
+            @RequestParam String academicYear,
+            @RequestParam String semester) {
+
+        if (scheduleWithoutRooms == null || scheduleWithoutRooms.getItems() == null) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.<TKBBatchResponse>builder()
+                            .success(false)
+                            .message("Dữ liệu thời khóa biểu không hợp lệ")
+                            .build());
+        }
+
+        if (academicYear == null || semester == null) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.<TKBBatchResponse>builder()
+                            .success(false)
+                            .message("Năm học và học kỳ không được rỗng")
+                            .build());
+        }
+
+        TKBBatchResponse response = roomService.assignRoomsToSchedule(
+                scheduleWithoutRooms, academicYear, semester);
+
+        return ResponseEntity.ok(ApiResponse.<TKBBatchResponse>builder()
+                .success(true)
+                .message("Gán phòng học cho thời khóa biểu thành công")
+                .data(response)
                 .build());
     }
 }

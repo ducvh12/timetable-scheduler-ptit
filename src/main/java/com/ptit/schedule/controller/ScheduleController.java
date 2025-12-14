@@ -5,10 +5,12 @@ import com.ptit.schedule.entity.Schedule;
 import com.ptit.schedule.entity.Subject;
 import com.ptit.schedule.entity.TKBTemplate;
 import com.ptit.schedule.entity.User;
+import com.ptit.schedule.entity.Room;
 import com.ptit.schedule.exception.InvalidDataException;
 import com.ptit.schedule.exception.ResourceNotFoundException;
 import com.ptit.schedule.repository.SubjectRepository;
 import com.ptit.schedule.repository.TKBTemplateRepository;
+import com.ptit.schedule.repository.RoomRepository;
 import com.ptit.schedule.service.ScheduleService;
 import com.ptit.schedule.service.DataLoaderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,64 +37,65 @@ public class ScheduleController {
     private final TKBTemplateRepository tkbTemplateRepository;
     private final SubjectRepository subjectRepository;
     private final DataLoaderService dataLoaderService;
-    private final com.ptit.schedule.repository.RoomRepository roomRepository;
+    private final RoomRepository roomRepository;
 
     @PostMapping("/save-batch")
     public ResponseEntity<String> saveSchedule(@RequestBody List<SaveScheduleRequest> scheduleRequests) {
         if (scheduleRequests == null || scheduleRequests.isEmpty()) {
             throw new InvalidDataException("Danh sách lịch học không được rỗng");
         }
-        
+
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
-        
+
         if (currentUser == null) {
             throw new ResourceNotFoundException("Không tìm thấy thông tin người dùng");
         }
-        
+
         // Convert DTO to Entity and attach TKBTemplate
         List<Schedule> schedules = new ArrayList<>();
         for (SaveScheduleRequest request : scheduleRequests) {
             if (request.getSubjectId() == null) {
                 throw new InvalidDataException("Subject ID không được rỗng");
             }
-            
+
             if (request.getTemplateDatabaseId() == null) {
                 throw new InvalidDataException("Template ID không được rỗng");
             }
-            
+
             // Use reference instead of loading from database (faster, no extra queries)
             Subject subject = subjectRepository.getReferenceById(request.getSubjectId());
             TKBTemplate template = tkbTemplateRepository.getReferenceById(request.getTemplateDatabaseId());
-            
+
             // Find Room by roomNumber (if provided)
             // Format: "402-A2" -> name="402", building="A2"
-            com.ptit.schedule.entity.Room room = null;
+            Room room = null;
             if (request.getRoomNumber() != null && !request.getRoomNumber().isEmpty()) {
                 String roomNumber = request.getRoomNumber();
                 String[] parts = roomNumber.split("-");
-                
+
                 if (parts.length == 2) {
-                    String roomName = parts[0].trim();      // "402"
-                    String building = parts[1].trim();       // "A2"
+                    String roomName = parts[0].trim(); // "402"
+                    String building = parts[1].trim(); // "A2"
                     room = roomRepository.findByNameAndBuilding(roomName, building).orElse(null);
-                    
+
                     if (room == null) {
                         System.out.println("⚠️ Room not found - Name: " + roomName + ", Building: " + building);
                     } else {
-                        System.out.println("✅ Found Room: " + room.getName() + "-" + room.getBuilding() + " (ID: " + room.getId() + ")");
+                        System.out.println("✅ Found Room: " + room.getName() + "-" + room.getBuilding() + " (ID: "
+                                + room.getId() + ")");
                     }
                 } else {
                     // Fallback: try to find by name only
                     room = roomRepository.findByName(roomNumber).orElse(null);
-                    System.out.println(room == null 
-                        ? "⚠️ Room not found for: " + roomNumber 
-                        : "✅ Found Room by name: " + room.getName());
+                    System.out.println(room == null
+                            ? "⚠️ Room not found for: " + roomNumber
+                            : "✅ Found Room by name: " + room.getName());
                 }
             } else {
                 System.out.println("⚠️ RoomNumber is null or empty");
             }
-            
+
             // Create Schedule entity
             Schedule schedule = Schedule.builder()
                     .subject(subject) // Gắn subject entity
@@ -105,24 +108,24 @@ public class ScheduleController {
                     .user(currentUser)
                     .tkbTemplate(template) // Gắn template vào schedule
                     .build();
-            
+
             schedules.add(schedule);
         }
-        
+
         scheduleService.saveAll(schedules);
-        
+
         // Auto-commit lastSlotIdx to Redis sau khi lưu TKB
         if (!schedules.isEmpty()) {
             Schedule firstSchedule = schedules.get(0);
-            
+
             if (firstSchedule.getSemester() != null) {
-                scheduleService.commitSessionToRedis(currentUser.getId(), 
-                    firstSchedule.getSemester().getAcademicYear(), 
-                    firstSchedule.getSemester().getSemesterName());
+                scheduleService.commitSessionToRedis(currentUser.getId(),
+                        firstSchedule.getSemester().getAcademicYear(),
+                        firstSchedule.getSemester().getSemesterName());
                 System.out.println("✅ [ScheduleController] Auto-committed lastSlotIdx to Redis after saving schedules");
             }
         }
-        
+
         return ResponseEntity.ok("Đã lưu TKB vào database!");
     }
 
@@ -130,11 +133,11 @@ public class ScheduleController {
     public ResponseEntity<List<Schedule>> getAllSchedules() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
-        
+
         if (currentUser == null) {
             throw new ResourceNotFoundException("Không tìm thấy thông tin người dùng");
         }
-        
+
         List<Schedule> schedules = scheduleService.getSchedulesByUserId(currentUser.getId());
         return ResponseEntity.ok(schedules);
     }
@@ -162,7 +165,7 @@ public class ScheduleController {
         if (id == null || id <= 0) {
             throw new InvalidDataException("ID lịch học không hợp lệ");
         }
-        
+
         scheduleService.deleteScheduleById(id);
         return ResponseEntity.ok("Đã xóa lịch học!");
     }
@@ -173,7 +176,8 @@ public class ScheduleController {
         return ResponseEntity.ok("Đã xóa toàn bộ lịch học!");
     }
 
-    // ==================== TKB Generation APIs (moved from TKBController) ====================
+    // ==================== TKB Generation APIs (moved from TKBController)
+    // ====================
 
     @Operation(summary = "Generate TKB for batch subjects", description = "Tạo thời khóa biểu cho nhiều môn học")
     @PostMapping("/generate-batch")
@@ -181,7 +185,7 @@ public class ScheduleController {
         if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
             throw new InvalidDataException("Danh sách môn học không được rỗng");
         }
-        
+
         // Lấy userId từ authentication nếu chưa có trong request
         if (request.getUserId() == null) {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -190,7 +194,7 @@ public class ScheduleController {
                 request.setUserId(currentUser.getId());
             }
         }
-        
+
         TKBBatchResponse response = scheduleService.generateSchedule(request);
         return ResponseEntity.ok(response);
     }
@@ -271,7 +275,7 @@ public class ScheduleController {
         if (file.isEmpty()) {
             throw new InvalidDataException("File không được để trống");
         }
-        
+
         if (semester == null || semester.isEmpty()) {
             throw new InvalidDataException("Học kỳ không được để trống");
         }
@@ -303,7 +307,7 @@ public class ScheduleController {
             @RequestParam Long userId,
             @RequestParam String academicYear,
             @RequestParam String semester) {
-        
+
         scheduleService.commitSessionToRedis(userId, academicYear, semester);
 
         Map<String, Object> result = new HashMap<>();
@@ -325,7 +329,7 @@ public class ScheduleController {
             @RequestParam Long userId,
             @RequestParam String academicYear,
             @RequestParam String semester) {
-        
+
         scheduleService.resetLastSlotIndexRedis(userId, academicYear, semester);
 
         Map<String, Object> result = new HashMap<>();
