@@ -58,6 +58,8 @@ public class SemesterServiceImpl implements SemesterService {
     
     @Override
     public SemesterResponse createSemester(SemesterRequest request) {
+        String[] arr = request.getAcademicYear().split("-");
+        String academicYear = arr[0].trim() + "-" + arr[1].trim();
         // Kiểm tra tên học kỳ và năm học đã tồn tại chưa
         if (semesterRepository.existsBySemesterNameAndAcademicYear(
                 request.getSemesterName(), request.getAcademicYear())) {
@@ -74,7 +76,7 @@ public class SemesterServiceImpl implements SemesterService {
         
         Semester semester = Semester.builder()
                 .semesterName(request.getSemesterName())
-                .academicYear(request.getAcademicYear())
+                .academicYear(academicYear)
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
                 .isActive(request.getIsActive() != null ? request.getIsActive() : false)
