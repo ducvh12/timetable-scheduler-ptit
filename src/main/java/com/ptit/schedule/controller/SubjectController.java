@@ -61,12 +61,8 @@ public class SubjectController {
             // Validate parameters
             if (page < 0) page = 0;
             if (size <= 0 || size > 100) size = 10; // Limit max size to 100
-            academicYear = AcademicYearUtils.resolveAcademicYear(academicYear);
+//            academicYear = AcademicYearUtils.resolveAcademicYear(academicYear);
             // Kiểm tra nếu có bất kỳ filter nào
-            boolean hasFilters = (semester != null && !semester.trim().isEmpty()) ||
-                               (classYear != null && !classYear.trim().isEmpty()) ||
-                               (majorCode != null && !majorCode.trim().isEmpty()) ||
-                               (programType != null && !programType.trim().isEmpty());
 
             Sort sort = sortDir.equalsIgnoreCase("desc")
                     ? Sort.by(sortBy).descending()

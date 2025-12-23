@@ -185,6 +185,14 @@ public class SubjectServiceImpl implements SubjectService {
         if(programType.equals("Đặc thù")){
 
             List<SubjectMajorDTO> appendSubjects = subjectRepository
+                    .findSubjectsWithMajorInfoByProgramType(semesterName, academicYear, classYear, "Đặc thù");
+            subjects.addAll(appendSubjects);
+            return separateMajorsByClassYear(subjects);
+        }
+
+        if(programType.equals("CLC")){
+
+            List<SubjectMajorDTO> appendSubjects = subjectRepository
                     .findSubjectsWithMajorInfoByProgramType(semesterName, academicYear, classYear, "CLC");
             subjects.addAll(appendSubjects);
             return separateMajorsByClassYear(subjects);
