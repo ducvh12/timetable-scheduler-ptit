@@ -45,7 +45,7 @@ public class SecurityConfig {
                         // Public endpoints - chỉ cho phép auth và swagger
                         .requestMatchers(
                                 "/api/auth/**",
-                                "/v3/v1/api-docs/**",
+                                "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/swagger-resources/**",

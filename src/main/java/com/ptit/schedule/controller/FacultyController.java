@@ -1,10 +1,10 @@
 package com.ptit.schedule.controller;
 
+import com.ptit.schedule.dto.ApiResponse;
 import com.ptit.schedule.dto.FacultyRequest;
 import com.ptit.schedule.dto.FacultyResponse;
 import com.ptit.schedule.service.FacultyService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,23 +23,25 @@ public class FacultyController {
     private final FacultyService facultyService;
     
     @Operation(summary = "Health check", description = "Kiểm tra trạng thái Faculty Controller")
-    @ApiResponse(responseCode = "200", description = "Faculty Controller hoạt động bình thường")
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return new ResponseEntity<>("Faculty Controller is OK", HttpStatus.OK);
     }
     
     @Operation(summary = "Lấy tất cả khoa", description = "Trả về danh sách tất cả khoa")
-    @ApiResponse(responseCode = "200", description = "Thành công")
     @GetMapping
-    public ResponseEntity<List<FacultyResponse>> getAllFaculties() {
+    public ResponseEntity<ApiResponse<List<FacultyResponse>>> getAllFaculties() {
         List<FacultyResponse> faculties = facultyService.getAllFaculties();
-        return ResponseEntity.ok(faculties);
+        return ResponseEntity.ok(
+                ApiResponse.<List<FacultyResponse>>builder()
+                        .data(faculties)
+                        .message("Faculty successfully retrieved")
+                        .success(true)
+                        .build()
+        );
     }
     
     @Operation(summary = "Lấy khoa theo ID", description = "Trả về thông tin khoa theo ID")
-    @ApiResponse(responseCode = "200", description = "Thành công")
-    @ApiResponse(responseCode = "404", description = "Không tìm thấy khoa")
     @GetMapping("/{id}")
     public ResponseEntity<FacultyResponse> getFacultyById(@PathVariable String id) {
         FacultyResponse faculty = facultyService.getFacultyById(id);
@@ -47,8 +49,6 @@ public class FacultyController {
     }
     
     @Operation(summary = "Tạo khoa mới", description = "Tạo khoa mới")
-    @ApiResponse(responseCode = "201", description = "Tạo thành công")
-    @ApiResponse(responseCode = "400", description = "Dữ liệu không hợp lệ")
     @PostMapping
     public ResponseEntity<FacultyResponse> createFaculty(@Valid @RequestBody FacultyRequest request) {
         FacultyResponse faculty = facultyService.createFaculty(request);
@@ -56,9 +56,6 @@ public class FacultyController {
     }
     
     @Operation(summary = "Cập nhật khoa", description = "Cập nhật thông tin khoa")
-    @ApiResponse(responseCode = "200", description = "Cập nhật thành công")
-    @ApiResponse(responseCode = "404", description = "Không tìm thấy khoa")
-    @ApiResponse(responseCode = "400", description = "Dữ liệu không hợp lệ")
     @PutMapping("/{id}")
     public ResponseEntity<FacultyResponse> updateFaculty(@PathVariable String id, 
                                                         @Valid @RequestBody FacultyRequest request) {
@@ -67,8 +64,6 @@ public class FacultyController {
     }
     
     @Operation(summary = "Xóa khoa", description = "Xóa khoa theo ID")
-    @ApiResponse(responseCode = "204", description = "Xóa thành công")
-    @ApiResponse(responseCode = "404", description = "Không tìm thấy khoa")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteFaculty(@PathVariable String id) {
         facultyService.deleteFaculty(id);

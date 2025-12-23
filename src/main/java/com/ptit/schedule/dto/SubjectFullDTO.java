@@ -29,6 +29,7 @@ public class SubjectFullDTO {
     private String department;
     private Integer studentsPerClass;
     private String semesterName;
+    private String academicYear;
     
     // Major information
     private Long majorId;
@@ -59,10 +60,12 @@ public class SubjectFullDTO {
                 .numberOfStudents(subject.getMajor().getNumberOfStudents())
                 .numberOfClasses(subject.getNumberOfClasses())
                 .department(subject.getDepartment())
+
                 .studentsPerClass(subject.getStudentsPerClass());
 
         // Set semester name if exists
         if (subject.getSemester() != null) {
+            builder.academicYear(subject.getSemester().getAcademicYear());
             builder.semesterName(subject.getSemester().getSemesterName());
         }
 
