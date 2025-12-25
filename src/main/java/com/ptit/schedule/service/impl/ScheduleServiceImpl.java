@@ -1,7 +1,6 @@
 package com.ptit.schedule.service.impl;
 
 import com.ptit.schedule.dto.*;
-import com.ptit.schedule.entity.Room;
 import com.ptit.schedule.entity.Schedule;
 import com.ptit.schedule.entity.Subject;
 import com.ptit.schedule.entity.Semester;
@@ -154,12 +153,11 @@ public class ScheduleServiceImpl implements ScheduleService {
         List<DataLoaderService.TKBTemplateRow> dataRows = dataLoaderService.loadTemplateData(semesterKey);
         if (dataRows.isEmpty()) {
             throw new InvalidDataException("Chưa có dữ liệu lịch mẫu cho " + semesterKey
-                    + ". Vui lòng import dữ liệu lịch mẫu trước khi sinh TKB.");
+                    + ". Vui lòng upload dữ liệu lịch mẫu trước khi sinh TKB.");
         }
 
         System.out.println("✅ [ScheduleService] Loaded " + dataRows.size() + " templates for " + semesterKey);
 
-        List<Room> rooms = loadRooms();
         Set<Object> occupiedRooms = initializeOccupiedRooms(userId, academicYear, semester);
 
         List<TKBBatchItemResponse> itemsOut = new ArrayList<>();
@@ -169,11 +167,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         // Load lastSlotIdx từ Redis
         if (userId != null && academicYear != null && semester != null) {
             lastSlotIdx = redisOccupiedRoomService.loadLastSlotIdx(userId, academicYear, semester);
-            System.out.println("✅ [ScheduleService] Load lastSlotIdx từ REDIS: " + lastSlotIdx +
-                    " (key: " + userId + ":" + academicYear + ":" + semester + ")");
         } else {
-            System.out.println(
-                    "⚠️ [ScheduleService] Cannot load lastSlotIdx: userId/academicYear/semester null. Using -1");
             lastSlotIdx = -1;
         }
         sessionLastSlotIdx = lastSlotIdx;
@@ -181,7 +175,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         List<TKBRequest> sortedItems = sortSubjectsByPeriods(request.getItems());
 
         for (TKBRequest tkbRequest : sortedItems) {
-            TKBBatchItemResponse itemResponse = processSubject(tkbRequest, dataRows, rooms, occupiedRooms);
+            TKBBatchItemResponse itemResponse = processSubject(tkbRequest, dataRows, occupiedRooms);
             itemsOut.add(itemResponse);
 
             if (!itemResponse.getRows().isEmpty()) {
@@ -204,7 +198,7 @@ public class ScheduleServiceImpl implements ScheduleService {
      */
     @Override
     public void commitSessionToRedis(Long userId, String academicYear, String semester) {
-        // Save occupied rooms to file (không đổi)
+        // Save occupied rooms to file
         if (!sessionOccupiedRooms.isEmpty()) {
             Set<Object> globalOccupied = dataLoaderService.loadGlobalOccupiedRooms();
             globalOccupied.addAll(sessionOccupiedRooms);
@@ -215,10 +209,6 @@ public class ScheduleServiceImpl implements ScheduleService {
         // Save lastSlotIdx to Redis
         if (userId != null && academicYear != null && semester != null) {
             redisOccupiedRoomService.saveLastSlotIdx(userId, academicYear, semester, sessionLastSlotIdx);
-            System.out.println("✅ [ScheduleService] Save lastSlotIdx vào REDIS: " + sessionLastSlotIdx +
-                    " (key: " + userId + ":" + academicYear + ":" + semester + ")");
-        } else {
-            System.out.println("⚠️ [ScheduleService] Cannot save lastSlotIdx: userId/academicYear/semester null");
         }
 
         lastSlotIdx = sessionLastSlotIdx;
@@ -263,12 +253,6 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     // ==================== PRIVATE HELPER METHODS ====================
 
-    private List<Room> loadRooms() {
-        return roomService.getAllRooms().stream()
-                .map(this::convertToRoom)
-                .collect(Collectors.toList());
-    }
-
     private Set<Object> initializeOccupiedRooms(Long userId, String academicYear, String semester) {
         sessionOccupiedRooms.clear();
         subjectRoomMappingService.clearMappings();
@@ -278,20 +262,167 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     private List<TKBRequest> sortSubjectsByPeriods(List<TKBRequest> items) {
-        List<TKBRequest> sorted = new ArrayList<>(items);
-        sorted.sort((a, b) -> {
-            if (a.getSotiet() == 60 && b.getSotiet() != 60)
-                return -1;
-            if (a.getSotiet() != 60 && b.getSotiet() == 60)
-                return 1;
-            return 0;
+        List<TKBRequest> sorted = new ArrayList<>();
+        Set<String> processedMajors = new HashSet<>();
+        Set<TKBRequest> processedSubjects = new HashSet<>();
+
+        // Tách môn 60 tiết riêng (vẫn ưu tiên trước)
+        List<TKBRequest> period60Items = new ArrayList<>();
+        List<TKBRequest> regularItems = new ArrayList<>();
+
+        for (TKBRequest item : items) {
+            if (item.getSotiet() == 60) {
+                period60Items.add(item);
+            } else {
+                regularItems.add(item);
+            }
+        }
+
+        // Thêm môn 60 tiết vào đầu
+        sorted.addAll(period60Items);
+        processedSubjects.addAll(period60Items);
+
+        // Nhóm môn học theo ngành
+        Map<String, List<TKBRequest>> singleMajorSubjects = new HashMap<>();
+        Map<String, List<TKBRequest>> combinedMajorSubjects = new HashMap<>();
+
+        for (TKBRequest item : regularItems) {
+            String major = item.getMajor();
+            if (major != null && major.contains("-")) {
+                // Môn kết hợp - GÁN CHO NGÀNH ĐẦU TIÊN
+                String firstMajor = major.split("-")[0].trim();
+                combinedMajorSubjects.computeIfAbsent(firstMajor, k -> new ArrayList<>()).add(item);
+            } else {
+                // Môn của một ngành
+                singleMajorSubjects.computeIfAbsent(major, k -> new ArrayList<>()).add(item);
+            }
+        }
+
+        // Lấy danh sách tất cả các ngành
+        Set<String> allMajors = new LinkedHashSet<>(singleMajorSubjects.keySet());
+        allMajors.addAll(combinedMajorSubjects.keySet());
+
+        // Chỉ xử lý các ngành CÓ MÔN KẾT HỢP được gán (các ngành khác sẽ được xử lý qua
+        // recursive)
+        List<String> majorsWithCombined = new ArrayList<>(combinedMajorSubjects.keySet());
+
+        // Sắp xếp theo số lượng môn kết hợp TĂNG DẦN (ít môn trước, nhiều môn sau)
+        majorsWithCombined.sort((m1, m2) -> {
+            int count1 = combinedMajorSubjects.get(m1).size();
+            int count2 = combinedMajorSubjects.get(m2).size();
+            return Integer.compare(count1, count2);
         });
+
+        // Xử lý các ngành có môn kết hợp
+        for (String major : majorsWithCombined) {
+            if (!processedMajors.contains(major)) {
+                processMajorRecursively(major, sorted, processedMajors, processedSubjects,
+                        singleMajorSubjects, combinedMajorSubjects);
+            }
+        }
+
+        // Thêm các môn còn lại (nếu có)
+        for (TKBRequest item : regularItems) {
+            if (!processedSubjects.contains(item)) {
+                sorted.add(item);
+            }
+        }
+
         return sorted;
+    }
+
+    private void processMajorRecursively(String currentMajor, List<TKBRequest> sorted,
+            Set<String> processedMajors, Set<TKBRequest> processedSubjects,
+            Map<String, List<TKBRequest>> singleMajorSubjects,
+            Map<String, List<TKBRequest>> combinedMajorSubjects) {
+
+        if (processedMajors.contains(currentMajor)) {
+            return;
+        }
+        processedMajors.add(currentMajor);
+
+        // Bước 1: Thêm các môn RIÊNG của ngành này
+        List<TKBRequest> majorSubjects = singleMajorSubjects.getOrDefault(currentMajor, new ArrayList<>());
+        for (TKBRequest subject : majorSubjects) {
+            if (!processedSubjects.contains(subject)) {
+                sorted.add(subject);
+                processedSubjects.add(subject);
+            }
+        }
+
+        // Bước 2: Thêm các môn KẾT HỢP được gán cho ngành này
+        List<TKBRequest> combinedSubjects = combinedMajorSubjects.getOrDefault(currentMajor, new ArrayList<>());
+
+        Set<String> nextMajors = new LinkedHashSet<>();
+
+        for (TKBRequest combined : combinedSubjects) {
+            if (!processedSubjects.contains(combined)) {
+                sorted.add(combined);
+                processedSubjects.add(combined);
+
+                // Thu thập các ngành liên quan
+                String[] majors = combined.getMajor().split("-");
+                for (int i = 1; i < majors.length; i++) {
+                    String nextMajor = majors[i].trim();
+                    if (!processedMajors.contains(nextMajor)) {
+                        nextMajors.add(nextMajor);
+                    }
+                }
+            }
+        }
+
+        // Bước 3: Tìm các môn kết hợp CÓ CHỨA ngành hiện tại
+        List<TKBRequest> relatedCombinedSubjects = new ArrayList<>();
+        Map<TKBRequest, String> subjectOwnerMap = new HashMap<>();
+
+        for (Map.Entry<String, List<TKBRequest>> entry : combinedMajorSubjects.entrySet()) {
+            String ownerMajor = entry.getKey();
+            if (ownerMajor.equals(currentMajor))
+                continue;
+
+            for (TKBRequest combined : entry.getValue()) {
+                if (!processedSubjects.contains(combined)) {
+                    String[] majors = combined.getMajor().split("-");
+                    for (String m : majors) {
+                        if (m.trim().equals(currentMajor)) {
+                            relatedCombinedSubjects.add(combined);
+                            subjectOwnerMap.put(combined, ownerMajor);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Sắp xếp theo độ phức tạp giảm dần
+        relatedCombinedSubjects.sort((s1, s2) -> {
+            int count1 = s1.getMajor().split("-").length;
+            int count2 = s2.getMajor().split("-").length;
+            return Integer.compare(count2, count1);
+        });
+
+        // Xử lý các môn kết hợp đã sắp xếp
+        for (TKBRequest combined : relatedCombinedSubjects) {
+            String ownerMajor = subjectOwnerMap.get(combined);
+
+            sorted.add(combined);
+            processedSubjects.add(combined);
+
+            if (!processedMajors.contains(ownerMajor)) {
+                nextMajors.add(ownerMajor);
+            }
+        }
+
+        // Bước 4: Xử lý các ngành liên quan
+        for (String nextMajor : nextMajors) {
+            processMajorRecursively(nextMajor, sorted, processedMajors, processedSubjects,
+                    singleMajorSubjects, combinedMajorSubjects);
+        }
     }
 
     private TKBBatchItemResponse processSubject(TKBRequest tkbRequest,
             List<DataLoaderService.TKBTemplateRow> dataRows,
-            List<Room> rooms, Set<Object> occupiedRooms) {
+            Set<Object> occupiedRooms) {
 
         int targetTotal = tkbRequest.getSotiet();
 
@@ -310,10 +441,10 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         if (targetTotal == 60) {
             startingSlotIdx = mapRegularSlotTo60PeriodSlot(sessionLastSlotIdx);
-            resultRows = process60PeriodSubject(tkbRequest, pool, rooms, occupiedRooms, startingSlotIdx);
+            resultRows = process60PeriodSubject(tkbRequest, pool, occupiedRooms, startingSlotIdx);
         } else {
             startingSlotIdx = (sessionLastSlotIdx + 1) % ROTATING_SLOTS.size();
-            resultRows = processRegularSubject(tkbRequest, pool, rooms, occupiedRooms, startingSlotIdx, classes,
+            resultRows = processRegularSubject(tkbRequest, pool, occupiedRooms, startingSlotIdx, classes,
                     targetTotal);
         }
 
@@ -460,7 +591,6 @@ public class ScheduleServiceImpl implements ScheduleService {
     private List<TKBRowResult> processRegularSubject(
             TKBRequest tkbRequest,
             List<DataLoaderService.TKBTemplateRow> pool,
-            List<Room> rooms,
             Set<Object> occupiedRooms,
             int startingSlotIdx,
             int classes,
@@ -533,7 +663,6 @@ public class ScheduleServiceImpl implements ScheduleService {
     private List<TKBRowResult> process60PeriodSubject(
             TKBRequest tkbRequest,
             List<DataLoaderService.TKBTemplateRow> pool,
-            List<Room> rooms,
             Set<Object> occupiedRooms,
             int startingSlotIdx) {
 
@@ -591,86 +720,5 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     private int toInt(Object value) {
         return toInt(value, 0);
-    }
-
-    private RoomAssignment assignRoomForClass(TKBRequest tkbRequest,
-            DataLoaderService.TKBTemplateRow row,
-            List<Room> rooms, Set<Object> occupiedRooms) {
-
-        Integer tietBd = row.getStartPeriod();
-        Integer rowThu = row.getDayOfWeek();
-        Integer rowKip = row.getKip();
-
-        if (tietBd == null || tietBd == 12 || rowThu == null || rowKip == null) {
-            return null;
-        }
-
-        RoomPickResult roomResult = roomService.pickRoom(
-                rooms,
-                tkbRequest.getSiso_mot_lop(),
-                occupiedRooms,
-                rowThu,
-                rowKip,
-                tkbRequest.getSubject_type(),
-                tkbRequest.getStudent_year(),
-                tkbRequest.getHe_dac_thu(),
-                null,
-                tkbRequest.getNganh(),
-                tkbRequest.getMa_mon());
-
-        if (!roomResult.hasRoom()) {
-            return null;
-        }
-
-        String occupationKey = roomResult.getMaPhong() + "|" + rowThu + "|" + rowKip;
-        occupiedRooms.add(occupationKey);
-        sessionOccupiedRooms.add(occupationKey);
-
-        return new RoomAssignment(roomResult.getRoomCode(), roomResult.getMaPhong(), roomResult.getDatabaseRoomId());
-    }
-
-    private void markRoomOccupiedForDays(String maPhong, List<Integer> days,
-            Integer kip, Set<Object> occupiedRooms) {
-        for (Integer day : days) {
-            String occupationKey = maPhong + "|" + day + "|" + kip;
-            occupiedRooms.add(occupationKey);
-            sessionOccupiedRooms.add(occupationKey);
-        }
-    }
-
-    private Room convertToRoom(RoomResponse roomResponse) {
-        return Room.builder()
-                .id(roomResponse.getId())
-                .name(roomResponse.getName())
-                .capacity(roomResponse.getCapacity())
-                .building(roomResponse.getBuilding())
-                .type(roomResponse.getType())
-                .status(roomResponse.getStatus())
-                .note(roomResponse.getNote())
-                .build();
-    }
-
-    private static class RoomAssignment {
-        private final String roomCode;
-        private final String maPhong;
-        private final Long roomId;
-
-        public RoomAssignment(String roomCode, String maPhong, Long roomId) {
-            this.roomCode = roomCode;
-            this.maPhong = maPhong;
-            this.roomId = roomId;
-        }
-
-        public String getRoomCode() {
-            return roomCode;
-        }
-
-        public String getMaPhong() {
-            return maPhong;
-        }
-
-        public Long getRoomId() {
-            return roomId;
-        }
     }
 }
