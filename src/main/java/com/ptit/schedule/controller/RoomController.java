@@ -190,47 +190,6 @@ public class RoomController {
         }
     }
 
-    @GetMapping("/occupied-info")
-    public ResponseEntity<Map<String, Object>> getOccupiedRoomsInfo() {
-        try {
-            Map<String, Integer> info = scheduleService.getOccupiedRoomsInfo();
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", "success");
-            response.put("session", info.get("session"));
-            response.put("global", info.get("global"));
-            response.put("total", info.get("total"));
-
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("message", "Lỗi khi lấy thông tin phòng: " + e.getMessage());
-            errorResponse.put("status", "error");
-            return ResponseEntity.badRequest().body(errorResponse);
-        }
-    }
-
-    @PostMapping("/reset")
-    public ResponseEntity<Map<String, Object>> resetOccupiedRooms() {
-        try {
-            Map<String, Integer> beforeInfo = scheduleService.getOccupiedRoomsInfo();
-
-            scheduleService.resetOccupiedRooms();
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Đã reset phòng đã sử dụng! Tất cả phòng có thể sử dụng lại.");
-            response.put("status", "success");
-            response.put("clearedRooms", beforeInfo.get("total"));
-
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("message", "Lỗi khi reset phòng: " + e.getMessage());
-            errorResponse.put("status", "error");
-            return ResponseEntity.badRequest().body(errorResponse);
-        }
-    }
-
     // Subject-Room Mapping endpoints
     @GetMapping("/subject-room-mappings")
     public ResponseEntity<ApiResponse<Map<String, String>>> getSubjectRoomMappings() {

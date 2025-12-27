@@ -28,8 +28,6 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final SemesterRepository semesterRepository;
     private final SubjectRepository subjectRepository;
 
-    private Set<String> sessionOccupiedRooms = new HashSet<>();
-
     private static final List<TimetableSlot> ROTATING_SLOTS = Arrays.asList(
             new TimetableSlot(2, "sang"), new TimetableSlot(3, "chieu"),
             new TimetableSlot(4, "sang"), new TimetableSlot(5, "chieu"),
@@ -158,7 +156,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         System.out.println("✅ [ScheduleService] Loaded " + dataRows.size() + " templates for " + semesterKey);
 
-        Set<Object> occupiedRooms = initializeOccupiedRooms(userId, academicYear, semester);
+        initializeSession();
 
         List<TKBBatchItemResponse> itemsOut = new ArrayList<>();
         int totalRows = 0;
@@ -175,7 +173,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         List<TKBRequest> sortedItems = sortSubjectsByPeriods(request.getItems());
 
         for (TKBRequest tkbRequest : sortedItems) {
-            TKBBatchItemResponse itemResponse = processSubject(tkbRequest, dataRows, occupiedRooms);
+            TKBBatchItemResponse itemResponse = processSubject(tkbRequest, dataRows);
             itemsOut.add(itemResponse);
 
             if (!itemResponse.getRows().isEmpty()) {
@@ -189,45 +187,25 @@ public class ScheduleServiceImpl implements ScheduleService {
                 .totalRows(totalRows)
                 .totalClasses(totalClasses)
                 .lastSlotIdx(sessionLastSlotIdx)
-                .occupiedRoomsCount(sessionOccupiedRooms.size())
+                .occupiedRoomsCount(0)
                 .build();
     }
 
     /**
-     * Lưu lastSlotIdx vào Redis (occupied rooms vẫn lưu vào file)
+     * Lưu lastSlotIdx vào Redis
      */
     @Override
     public void commitSessionToRedis(Long userId, String academicYear, String semester) {
-        // Save occupied rooms to file
-        if (!sessionOccupiedRooms.isEmpty()) {
-            Set<Object> globalOccupied = dataLoaderService.loadGlobalOccupiedRooms();
-            globalOccupied.addAll(sessionOccupiedRooms);
-            dataLoaderService.saveGlobalOccupiedRooms(globalOccupied);
-            sessionOccupiedRooms.clear();
-        }
-
         // Save lastSlotIdx to Redis
         if (userId != null && academicYear != null && semester != null) {
             redisOccupiedRoomService.saveLastSlotIdx(userId, academicYear, semester, sessionLastSlotIdx);
         }
-
         lastSlotIdx = sessionLastSlotIdx;
     }
 
     @Override
     public void resetState() {
         lastSlotIdx = -1;
-    }
-
-    @Override
-    public void resetOccupiedRooms() {
-        sessionOccupiedRooms.clear();
-
-        Set<Object> emptySet = new HashSet<>();
-        dataLoaderService.saveGlobalOccupiedRooms(emptySet);
-
-        lastSlotIdx = -1;
-        sessionLastSlotIdx = -1;
     }
 
     @Override
@@ -239,26 +217,10 @@ public class ScheduleServiceImpl implements ScheduleService {
         sessionLastSlotIdx = -1;
     }
 
-    @Override
-    public Map<String, Integer> getOccupiedRoomsInfo() {
-        Set<Object> globalRooms = dataLoaderService.loadGlobalOccupiedRooms();
-
-        Map<String, Integer> info = new HashMap<>();
-        info.put("session", sessionOccupiedRooms.size());
-        info.put("global", globalRooms.size());
-        info.put("total", sessionOccupiedRooms.size() + globalRooms.size());
-
-        return info;
-    }
-
     // ==================== PRIVATE HELPER METHODS ====================
 
-    private Set<Object> initializeOccupiedRooms(Long userId, String academicYear, String semester) {
-        sessionOccupiedRooms.clear();
+    private void initializeSession() {
         subjectRoomMappingService.clearMappings();
-
-        Set<Object> globalOccupiedRooms = dataLoaderService.loadGlobalOccupiedRooms();
-        return new HashSet<>(globalOccupiedRooms);
     }
 
     private List<TKBRequest> sortSubjectsByPeriods(List<TKBRequest> items) {
@@ -421,8 +383,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     private TKBBatchItemResponse processSubject(TKBRequest tkbRequest,
-            List<DataLoaderService.TKBTemplateRow> dataRows,
-            Set<Object> occupiedRooms) {
+            List<DataLoaderService.TKBTemplateRow> dataRows) {
 
         int targetTotal = tkbRequest.getSotiet();
 
@@ -441,10 +402,10 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         if (targetTotal == 60) {
             startingSlotIdx = mapRegularSlotTo60PeriodSlot(sessionLastSlotIdx);
-            resultRows = process60PeriodSubject(tkbRequest, pool, occupiedRooms, startingSlotIdx);
+            resultRows = process60PeriodSubject(tkbRequest, pool, startingSlotIdx);
         } else {
             startingSlotIdx = (sessionLastSlotIdx + 1) % ROTATING_SLOTS.size();
-            resultRows = processRegularSubject(tkbRequest, pool, occupiedRooms, startingSlotIdx, classes,
+            resultRows = processRegularSubject(tkbRequest, pool, startingSlotIdx, classes,
                     targetTotal);
         }
 
@@ -591,7 +552,6 @@ public class ScheduleServiceImpl implements ScheduleService {
     private List<TKBRowResult> processRegularSubject(
             TKBRequest tkbRequest,
             List<DataLoaderService.TKBTemplateRow> pool,
-            Set<Object> occupiedRooms,
             int startingSlotIdx,
             int classes,
             int targetTotal) {
@@ -663,7 +623,6 @@ public class ScheduleServiceImpl implements ScheduleService {
     private List<TKBRowResult> process60PeriodSubject(
             TKBRequest tkbRequest,
             List<DataLoaderService.TKBTemplateRow> pool,
-            Set<Object> occupiedRooms,
             int startingSlotIdx) {
 
         List<TKBRowResult> resultRows = new ArrayList<>();
