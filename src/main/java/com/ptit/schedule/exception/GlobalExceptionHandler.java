@@ -2,6 +2,7 @@ package com.ptit.schedule.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -30,6 +31,19 @@ public class GlobalExceptionHandler {
         response.put("error", "Dữ liệu không hợp lệ");
         response.put("message", "Vui lòng kiểm tra lại thông tin đầu vào");
         response.put("errors", errors);
+
+        return ResponseEntity.badRequest().body(response);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleHttpMessageNotReadableException(
+            HttpMessageNotReadableException ex) {
+        Map<String, Object> response = new HashMap<>();
+
+        response.put("timestamp", LocalDateTime.now());
+        response.put("status", HttpStatus.BAD_REQUEST.value());
+        response.put("error", "Dữ liệu không hợp lệ");
+        response.put("message", "Vui lòng kiểm tra lại thông tin đầu vào");
 
         return ResponseEntity.badRequest().body(response);
     }
