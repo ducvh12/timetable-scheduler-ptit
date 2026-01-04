@@ -76,7 +76,7 @@ public class ScheduleConflictDetectionServiceImpl implements ScheduleConflictDet
 //                    }
 
                     List<ScheduleEntryWithTimeSlot> uniqueEntries = removeDuplicateEntriesWithTimeSlot(entriesAtTime);
-
+                    //duplicate
                     if (uniqueEntries.size() > 1) {
                         // Tạo TimeSlot đại diện từ tất cả conflicts thay vì chỉ lấy của entry đầu tiên
                         ScheduleEntry.TimeSlot representativeTimeSlot = createRepresentativeTimeSlot(timeSlotKey, uniqueEntries);

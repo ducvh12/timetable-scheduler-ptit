@@ -4,6 +4,7 @@ import com.ptit.schedule.dto.SemesterRequest;
 import com.ptit.schedule.dto.SemesterResponse;
 import com.ptit.schedule.entity.Semester;
 import com.ptit.schedule.repository.RoomOccupancyRepository;
+import com.ptit.schedule.repository.ScheduleRepository;
 import com.ptit.schedule.repository.SemesterRepository;
 import com.ptit.schedule.repository.TKBTemplateRepository;
 import com.ptit.schedule.service.SemesterService;
@@ -22,6 +23,7 @@ public class SemesterServiceImpl implements SemesterService {
     private final SemesterRepository semesterRepository;
     private final RoomOccupancyRepository roomOccupancyRepository;
     private final TKBTemplateRepository tkbTemplateRepository;
+    private final ScheduleRepository scheduleRepository;
     
     @Override
     @Transactional(readOnly = true)
@@ -126,14 +128,27 @@ public class SemesterServiceImpl implements SemesterService {
         Semester semester = semesterRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy học kỳ với ID: " + id));
         
-        // Xóa tkb_templates trước
-        tkbTemplateRepository.deleteBySemester(semester);
+        // Bước 1: Xóa tất cả schedules liên quan đến semester này
+        // Schedule có FK đến Subject và TKBTemplate, phải xóa trước
+        List<com.ptit.schedule.entity.Schedule> schedules = scheduleRepository
+                .findBySemesterNameAndAcademicYear(semester.getSemesterName(), semester.getAcademicYear());
+        if (!schedules.isEmpty()) {
+            scheduleRepository.deleteAll(schedules);
+            scheduleRepository.flush();
+        }
         
-        // Xóa room_occupancies
+        // Bước 2: Xóa tất cả TKBTemplates của semester
+        // TKBTemplate có FK đến Semester
+        tkbTemplateRepository.deleteBySemester(semester);
+        tkbTemplateRepository.flush();
+        
+        // Bước 3: Xóa tất cả RoomOccupancies
+        // RoomOccupancy có FK đến Semester
         roomOccupancyRepository.deleteBySemesterId(id);
         roomOccupancyRepository.flush();
         
-        // Xóa semester
+        // Bước 4: Xóa Semester (cascade sẽ tự động xóa Subjects)
+        // Subject có cascade = ALL từ Semester
         semesterRepository.deleteById(id);
     }
     
