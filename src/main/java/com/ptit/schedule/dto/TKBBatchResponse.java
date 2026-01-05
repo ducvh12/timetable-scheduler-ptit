@@ -22,4 +22,5 @@ public class TKBBatchResponse {
     private Integer occupiedRoomsCount; // Count of rooms used in this batch
     private String note;
     private String error;
+    private List<String> warningsNoRoom; // List of subjects that couldn't find suitable rooms
 }

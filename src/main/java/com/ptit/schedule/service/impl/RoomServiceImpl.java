@@ -677,6 +677,8 @@ public class RoomServiceImpl implements RoomService {
         log.info("🔒 Loaded {} globally occupied rooms", occupiedRooms.size());
 
         int totalRoomsAssigned = 0;
+        List<String> warningsNoRoom = new ArrayList<>();
+        Set<String> subjectsWithNoRoom = new HashSet<>();
 
         // Iterate through each subject's schedule
         for (TKBBatchItemResponse item : existingSchedule.getItems()) {
@@ -686,6 +688,7 @@ public class RoomServiceImpl implements RoomService {
             // Group rows by class number to assign same room for same class
             Map<Integer, String> classRoomCache = new HashMap<>();
             Map<Integer, Long> classRoomIdCache = new HashMap<>();
+            boolean hasUnassignedRoom = false;
 
             for (TKBRowResult row : item.getRows()) {
                 Integer tietBd = row.getTietBd();
@@ -740,9 +743,20 @@ public class RoomServiceImpl implements RoomService {
                     } else {
                         log.warn("⚠️ No suitable room found for class {}, {}/{}/{}",
                                 lop, row.getThu(), row.getKip(), row.getTietBd());
+                        hasUnassignedRoom = true;
                     }
                 } catch (Exception e) {
                     log.error("❌ Error assigning room for class {}: {}", lop, e.getMessage());
+                    hasUnassignedRoom = true;
+                }
+            }
+            
+            // After processing all rows, check if any room was not assigned
+            if (hasUnassignedRoom) {
+                String subjectKey = input.getMa_mon() + " - " + input.getTen_mon();
+                if (!subjectsWithNoRoom.contains(subjectKey)) {
+                    subjectsWithNoRoom.add(subjectKey);
+                    warningsNoRoom.add(subjectKey);
                 }
             }
         }
@@ -751,6 +765,9 @@ public class RoomServiceImpl implements RoomService {
 
         // Save occupied rooms to database
         dataLoaderService.saveGlobalOccupiedRooms(occupiedRooms);
+
+        // Set warnings in response
+        existingSchedule.setWarningsNoRoom(warningsNoRoom);
 
         return existingSchedule;
     }
